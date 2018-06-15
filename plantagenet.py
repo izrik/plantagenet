@@ -1,22 +1,22 @@
 #!/usr/bin/env python
 
-# blogware - a python blogging system
+# plantagenet - a python blogging system
 # Copyright (C) 2016-2017 izrik
 #
-# This file is a part of blogware.
+# This file is a part of plantagenet.
 #
-# Blogware is free software: you can redistribute it and/or modify
+# Plantagenet is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# Blogware is distributed in the hope that it will be useful,
+# Plantagenet is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with blogware.  If not, see <http://www.gnu.org/licenses/>.
+# along with plantagenet.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import argparse
@@ -49,16 +49,16 @@ except git.InvalidGitRepositoryError:
 
 
 class Config(object):
-    SECRET_KEY = environ.get('BLOGWARE_SECRET_KEY', 'secret')
-    HOST = environ.get('BLOGWARE_HOST', '127.0.0.1')
-    PORT = environ.get('BLOGWARE_PORT', 1177)
-    DEBUG = environ.get('BLOGWARE_DEBUG', False)
-    DB_URI = environ.get('BLOGWARE_DB_URI', 'sqlite:////tmp/blog.db')
-    SITENAME = environ.get('BLOGWARE_SITENAME', 'Site Name')
-    SITEURL = environ.get('BLOGWARE_SITEURL', 'http://localhost:1177')
-    CUSTOM_TEMPLATES = environ.get('BLOGWARE_CUSTOM_TEMPLATES', None)
-    AUTHOR = environ.get('BLOGWARE_AUTHOR', 'The Author')
-    LOCAL_RESOURCES = environ.get('BLOGWARE_LOCAL_RESOURCES', False)
+    SECRET_KEY = environ.get('PLANTAGENET_SECRET_KEY', 'secret')
+    HOST = environ.get('PLANTAGENET_HOST', '127.0.0.1')
+    PORT = environ.get('PLANTAGENET_PORT', 1177)
+    DEBUG = environ.get('PLANTAGENET_DEBUG', False)
+    DB_URI = environ.get('PLANTAGENET_DB_URI', 'sqlite:////tmp/blog.db')
+    SITENAME = environ.get('PLANTAGENET_SITENAME', 'Site Name')
+    SITEURL = environ.get('PLANTAGENET_SITEURL', 'http://localhost:1177')
+    CUSTOM_TEMPLATES = environ.get('PLANTAGENET_CUSTOM_TEMPLATES', None)
+    AUTHOR = environ.get('PLANTAGENET_AUTHOR', 'The Author')
+    LOCAL_RESOURCES = environ.get('PLANTAGENET_LOCAL_RESOURCES', False)
 
 
 if __name__ == "__main__":
