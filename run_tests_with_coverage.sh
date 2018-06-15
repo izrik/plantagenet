@@ -1,4 +1,5 @@
 #!/bin/bash
 
 coverage run --source=plantagenet ./run_tests.py "$@" && \
-    coverage html
+    coverage html && \
+    flake8 plantagenet.py run_tests.py
