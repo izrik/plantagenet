@@ -291,6 +291,10 @@ class Options(object):
         return __revision__
 
     @staticmethod
+    def get_version():
+        return __version__
+
+    @staticmethod
     def seq():
         i = 0
         while True:
