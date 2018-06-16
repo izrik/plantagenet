@@ -370,6 +370,13 @@ class CliCommandsTest(unittest.TestCase):
         self.assertRaises(NotFound, plantagenet.reset_slug, 1)
 
 
+class VersionTest(unittest.TestCase):
+    def test_version_number_is_correct(self):
+        from plantagenet import Options
+        # expect
+        self.assertEqual('0.1', Options.get_version())
+
+
 def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('--print-log', action='store_true',
