@@ -53,6 +53,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.exceptions import ServiceUnavailable
 from werkzeug.exceptions import Unauthorized
 
+__version__ = '0.1'
 try:
     __revision__ = git.Repo('.').git.describe(tags=True, dirty=True,
                                               always=True, abbrev=40)
@@ -288,6 +289,10 @@ class Options(object):
     @staticmethod
     def get_revision():
         return __revision__
+
+    @staticmethod
+    def get_version():
+        return __version__
 
     @staticmethod
     def seq():
