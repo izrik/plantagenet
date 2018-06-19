@@ -6,7 +6,7 @@ LABEL \
     Version="$PLANTAGENET_VERSION" \
     Summary="A Python blogging system." \
     Description="A Python blogging system." \
-    maintaner="izrik <izrik@izrikrackspace.com>"
+    maintaner="izrik <izrik@izrik.com>"
 
 RUN mkdir -p /opt/plantagenet
 
