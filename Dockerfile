@@ -22,9 +22,11 @@ COPY plantagenet.py \
 COPY static static
 COPY templates templates
 
-RUN pip install -r requirements.txt
-RUN pip install gunicorn==19.8.1
-RUN pip install MySQL-python==1.2.5
+RUN apk add --virtual .build-deps gcc musl-dev libffi-dev postgresql-dev libpq && \
+    pip install -r requirements.txt && \
+    pip install gunicorn==19.8.1 && \
+    pip install psycopg2==2.8.6 && \
+    apk --purge del .build-deps
 
 EXPOSE 8080
 ENV PLANTAGENET_PORT=8080 \
