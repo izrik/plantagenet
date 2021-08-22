@@ -373,7 +373,7 @@ class VersionTest(unittest.TestCase):
     def test_version_number_is_correct(self):
         from plantagenet import Options
         # expect
-        self.assertEqual('0.1', Options.get_version())
+        self.assertEqual('0.2', Options.get_version())
 
 
 def run():
