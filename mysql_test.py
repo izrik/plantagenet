@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # plantagenet - a python blogging system
 # Copyright (C) 2016-2017 izrik
