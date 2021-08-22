@@ -62,7 +62,6 @@ class PostTest(unittest.TestCase):
         self.assertTrue(post.is_draft)
 
     def test_init_optional_arg_notes(self):
-
         # when a Post is created
         post = plantagenet.Post('title', 'content', datetime(2017, 1, 1))
 
@@ -391,6 +390,7 @@ def run():
                                     '%(threadName)s(%(thread)d):%(message)s'))
 
     unittest.main(argv=[''])
+
 
 if __name__ == '__main__':
     run()
