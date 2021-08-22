@@ -1,4 +1,4 @@
-FROM python:2.7
+FROM python:3.8.11-alpine3.14
 
 ENV PLANTAGENET_VERSION=0.1
 LABEL \
