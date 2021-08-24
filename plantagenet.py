@@ -61,6 +61,14 @@ except git.InvalidGitRepositoryError:
     __revision__ = 'unknown'
 
 
+class PlantagenetError(Exception):
+    pass
+
+
+class ConfigError(PlantagenetError):
+    pass
+
+
 class Config(object):
     SECRET_KEY = environ.get('PLANTAGENET_SECRET_KEY', 'secret')
     HOST = environ.get('PLANTAGENET_HOST', '127.0.0.1')
