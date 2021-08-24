@@ -22,10 +22,11 @@ COPY plantagenet.py \
 COPY static static
 COPY templates templates
 
-RUN apk add --virtual .build-deps gcc musl-dev libffi-dev postgresql-dev libpq && \
-    pip install -r requirements.txt && \
-    pip install gunicorn==19.8.1 && \
-    pip install psycopg2==2.8.6 && \
+RUN apk add --virtual .build-deps gcc musl-dev libffi-dev postgresql-dev g++ && \
+    apk add libpq && \
+    pip install -r requirements.txt \
+                gunicorn==19.8.1 \
+                psycopg2==2.8.6 && \
     apk --purge del .build-deps
 
 EXPOSE 8080
