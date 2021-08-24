@@ -1,6 +1,6 @@
 FROM python:3.8.11-alpine3.14
 
-ENV PLANTAGENET_VERSION=0.1
+ENV PLANTAGENET_VERSION=0.2
 LABEL \
     Name="plantagenet" \
     Version="$PLANTAGENET_VERSION" \
