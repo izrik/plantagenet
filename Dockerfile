@@ -23,7 +23,7 @@ COPY static static
 COPY templates templates
 
 RUN apk add --virtual .build-deps gcc musl-dev libffi-dev postgresql-dev g++ && \
-    apk add libpq && \
+    apk add libpq git bash && \
     pip install -r requirements.txt \
                 gunicorn==19.8.1 \
                 psycopg2==2.8.6 && \
