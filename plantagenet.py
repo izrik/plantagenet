@@ -74,7 +74,8 @@ class Config(object):
     HOST = environ.get('PLANTAGENET_HOST', '127.0.0.1')
     PORT = environ.get('PLANTAGENET_PORT', 1177)
     DEBUG = environ.get('PLANTAGENET_DEBUG', False)
-    DB_URI = environ.get('PLANTAGENET_DB_URI', 'sqlite:////tmp/blog.db')
+    DB_URI = environ.get('PLANTAGENET_DB_URI')
+    DB_URI_FILE = environ.get('PLANTAGENET_DB_URI_FILE')
     SITENAME = environ.get('PLANTAGENET_SITENAME', 'Site Name')
     SITEURL = environ.get('PLANTAGENET_SITEURL', 'http://localhost:1177')
     CUSTOM_TEMPLATES = environ.get('PLANTAGENET_CUSTOM_TEMPLATES', None)
@@ -96,6 +97,8 @@ if __name__ == "__main__":
                         default=Config.DEBUG)
     parser.add_argument('--db-uri', type=str, action='store',
                         default=Config.DB_URI)
+    parser.add_argument('--db-uri-file', action='store',
+                        default=Config.DB_URI_FILE)
     parser.add_argument('--sitename', type=str,
                         default=Config.SITENAME, help='')
     parser.add_argument('--siteurl', type=str,
@@ -141,6 +144,7 @@ if __name__ == "__main__":
     Config.PORT = args.port
     Config.DEBUG = args.debug
     Config.DB_URI = args.db_uri
+    Config.DB_URI_FILE = args.db_uri_file
     Config.SITENAME = args.sitename
     Config.SITEURL = args.siteurl
     Config.CUSTOM_TEMPLATES = args.custom_templates
@@ -158,6 +162,24 @@ if Config.CUSTOM_TEMPLATES:
 
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config["SECRET_KEY"] = Config.SECRET_KEY  # for WTF-forms and login
+
+db_uri = 'sqlite://'
+if Config.DB_URI:
+    db_uri = Config.DB_URI
+elif Config.DB_URI_FILE:
+    try:
+        with open(Config.DB_URI_FILE) as f:
+            db_uri = f.read().strip()
+    except FileNotFoundError:
+        raise ConfigError(
+            f'Could not find uri file "{Config.DB_URI_FILE}".')
+    except PermissionError:
+        raise ConfigError(
+            f'Permission error when opening uri file '
+            f'"{Config.DB_URI_FILE}".')
+    except Exception as e:
+        raise ConfigError(
+            f'Error opening uri file "{Config.DB_URI_FILE}": {e}')
 app.config['SQLALCHEMY_DATABASE_URI'] = Config.DB_URI
 
 # extensions
@@ -543,6 +565,8 @@ def run():
         print('Custom template path: {}'.format(Config.CUSTOM_TEMPLATES))
     if Config.DEBUG:
         print('DB URI: {}'.format(Config.DB_URI))
+        print('DB URI File: {}'.format(Config.DB_URI_FILE))
+        print(f"Effective DB URI: {db_uri}")
         print('Secret Key: {}'.format(Config.SECRET_KEY))
     print('Local Resources: {}'.format(Config.LOCAL_RESOURCES))
 
