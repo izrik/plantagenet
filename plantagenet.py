@@ -180,7 +180,7 @@ elif Config.DB_URI_FILE:
     except Exception as e:
         raise ConfigError(
             f'Error opening uri file "{Config.DB_URI_FILE}": {e}')
-app.config['SQLALCHEMY_DATABASE_URI'] = Config.DB_URI
+app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 
 # extensions
 login_manager = LoginManager(app)
