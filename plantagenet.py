@@ -121,6 +121,7 @@ if __name__ == "__main__":
     parser.add_argument('--create-secret-key', action='store_true')
     parser.add_argument('--create-db', action='store_true')
     parser.add_argument('--hash-password', action='store', metavar='PASSWORD')
+    parser.add_argument('--count-posts', action='store_true')
     parser.add_argument('--reset-slug', action='store', metavar='POST_ID')
     parser.add_argument('--set-date', action='store', nargs=2,
                         metavar=('POST_ID', 'DATE'))
@@ -575,6 +576,9 @@ def run():
         create_db()
     elif args.hash_password is not None:
         print(hash_password(args.hash_password))
+    elif args.count_posts is not None:
+        c = Post.query.count()
+        print(f'Found {c} posts.')
     elif args.reset_slug is not None:
         try:
             reset_slug(args.reset_slug)
