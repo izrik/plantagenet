@@ -1,6 +1,6 @@
-FROM python:2.7
+FROM python:3.8.11-alpine3.14
 
-ENV PLANTAGENET_VERSION=0.1
+ENV PLANTAGENET_VERSION=0.2
 LABEL \
     Name="plantagenet" \
     Version="$PLANTAGENET_VERSION" \
@@ -22,9 +22,12 @@ COPY plantagenet.py \
 COPY static static
 COPY templates templates
 
-RUN pip install -r requirements.txt
-RUN pip install gunicorn==19.8.1
-RUN pip install MySQL-python==1.2.5
+RUN apk add --virtual .build-deps gcc musl-dev libffi-dev postgresql-dev g++ && \
+    apk add libpq git bash && \
+    pip install -r requirements.txt \
+                gunicorn==19.8.1 \
+                psycopg2==2.8.6 && \
+    apk --purge del .build-deps
 
 EXPOSE 8080
 ENV PLANTAGENET_PORT=8080 \

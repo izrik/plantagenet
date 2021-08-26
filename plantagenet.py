@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # plantagenet - a python blogging system
 # Copyright (C) 2016-2017 izrik
@@ -53,7 +53,7 @@ from werkzeug.exceptions import NotFound
 from werkzeug.exceptions import ServiceUnavailable
 from werkzeug.exceptions import Unauthorized
 
-__version__ = '0.1'
+__version__ = '0.2'
 try:
     __revision__ = git.Repo('.').git.describe(tags=True, dirty=True,
                                               always=True, abbrev=40)
@@ -61,12 +61,21 @@ except git.InvalidGitRepositoryError:
     __revision__ = 'unknown'
 
 
+class PlantagenetError(Exception):
+    pass
+
+
+class ConfigError(PlantagenetError):
+    pass
+
+
 class Config(object):
     SECRET_KEY = environ.get('PLANTAGENET_SECRET_KEY', 'secret')
     HOST = environ.get('PLANTAGENET_HOST', '127.0.0.1')
     PORT = environ.get('PLANTAGENET_PORT', 1177)
     DEBUG = environ.get('PLANTAGENET_DEBUG', False)
-    DB_URI = environ.get('PLANTAGENET_DB_URI', 'sqlite:////tmp/blog.db')
+    DB_URI = environ.get('PLANTAGENET_DB_URI')
+    DB_URI_FILE = environ.get('PLANTAGENET_DB_URI_FILE')
     SITENAME = environ.get('PLANTAGENET_SITENAME', 'Site Name')
     SITEURL = environ.get('PLANTAGENET_SITEURL', 'http://localhost:1177')
     CUSTOM_TEMPLATES = environ.get('PLANTAGENET_CUSTOM_TEMPLATES', None)
@@ -88,6 +97,8 @@ if __name__ == "__main__":
                         default=Config.DEBUG)
     parser.add_argument('--db-uri', type=str, action='store',
                         default=Config.DB_URI)
+    parser.add_argument('--db-uri-file', action='store',
+                        default=Config.DB_URI_FILE)
     parser.add_argument('--sitename', type=str,
                         default=Config.SITENAME, help='')
     parser.add_argument('--siteurl', type=str,
@@ -110,6 +121,7 @@ if __name__ == "__main__":
     parser.add_argument('--create-secret-key', action='store_true')
     parser.add_argument('--create-db', action='store_true')
     parser.add_argument('--hash-password', action='store', metavar='PASSWORD')
+    parser.add_argument('--count-posts', action='store_true')
     parser.add_argument('--reset-slug', action='store', metavar='POST_ID')
     parser.add_argument('--set-date', action='store', nargs=2,
                         metavar=('POST_ID', 'DATE'))
@@ -124,7 +136,7 @@ if __name__ == "__main__":
 
     if args.create_secret_key:
         digits = '0123456789abcdef'
-        key = ''.join((random.choice(digits) for x in xrange(48)))
+        key = ''.join((random.choice(digits) for x in range(48)))
         print(key)
         exit(0)
 
@@ -133,6 +145,7 @@ if __name__ == "__main__":
     Config.PORT = args.port
     Config.DEBUG = args.debug
     Config.DB_URI = args.db_uri
+    Config.DB_URI_FILE = args.db_uri_file
     Config.SITENAME = args.sitename
     Config.SITEURL = args.siteurl
     Config.CUSTOM_TEMPLATES = args.custom_templates
@@ -150,7 +163,25 @@ if Config.CUSTOM_TEMPLATES:
 
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config["SECRET_KEY"] = Config.SECRET_KEY  # for WTF-forms and login
-app.config['SQLALCHEMY_DATABASE_URI'] = Config.DB_URI
+
+db_uri = 'sqlite://'
+if Config.DB_URI:
+    db_uri = Config.DB_URI
+elif Config.DB_URI_FILE:
+    try:
+        with open(Config.DB_URI_FILE) as f:
+            db_uri = f.read().strip()
+    except FileNotFoundError:
+        raise ConfigError(
+            f'Could not find uri file "{Config.DB_URI_FILE}".')
+    except PermissionError:
+        raise ConfigError(
+            f'Permission error when opening uri file '
+            f'"{Config.DB_URI_FILE}".')
+    except Exception as e:
+        raise ConfigError(
+            f'Error opening uri file "{Config.DB_URI_FILE}": {e}')
+app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 
 # extensions
 login_manager = LoginManager(app)
@@ -224,7 +255,7 @@ class Post(db.Model):
     def content(self, value):
         if value is None:
             value = ''
-        value = unicode(value)
+        value = str(value)
         self._content = value
         self.summary = self.summarize(value)
 
@@ -535,6 +566,8 @@ def run():
         print('Custom template path: {}'.format(Config.CUSTOM_TEMPLATES))
     if Config.DEBUG:
         print('DB URI: {}'.format(Config.DB_URI))
+        print('DB URI File: {}'.format(Config.DB_URI_FILE))
+        print(f"Effective DB URI: {db_uri}")
         print('Secret Key: {}'.format(Config.SECRET_KEY))
     print('Local Resources: {}'.format(Config.LOCAL_RESOURCES))
 
@@ -543,6 +576,9 @@ def run():
         create_db()
     elif args.hash_password is not None:
         print(hash_password(args.hash_password))
+    elif args.count_posts is not None:
+        c = Post.query.count()
+        print(f'Found {c} posts.')
     elif args.reset_slug is not None:
         try:
             reset_slug(args.reset_slug)

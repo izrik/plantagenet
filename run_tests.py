@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 from datetime import datetime
@@ -62,7 +62,6 @@ class PostTest(unittest.TestCase):
         self.assertTrue(post.is_draft)
 
     def test_init_optional_arg_notes(self):
-
         # when a Post is created
         post = plantagenet.Post('title', 'content', datetime(2017, 1, 1))
 
@@ -374,7 +373,7 @@ class VersionTest(unittest.TestCase):
     def test_version_number_is_correct(self):
         from plantagenet import Options
         # expect
-        self.assertEqual('0.1', Options.get_version())
+        self.assertEqual('0.2', Options.get_version())
 
 
 def run():
@@ -391,6 +390,7 @@ def run():
                                     '%(threadName)s(%(thread)d):%(message)s'))
 
     unittest.main(argv=[''])
+
 
 if __name__ == '__main__':
     run()
