@@ -578,7 +578,7 @@ def run():
         create_db()
     elif args.hash_password is not None:
         print(hash_password(args.hash_password))
-    elif args.count_posts is not None:
+    elif args.count_posts:
         c = Post.query.count()
         print(f'Found {c} posts.')
     elif args.reset_slug is not None:
