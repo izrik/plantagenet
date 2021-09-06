@@ -355,7 +355,9 @@ def setup_options():
 
 @app.template_filter(name='gfm')
 def render_gfm(s):
-    output = markdown.markdown(s, extensions=['gfm'])
+    from mdx_gfm import GithubFlavoredMarkdownExtension
+    output = markdown.markdown(
+        s, extensions=[GithubFlavoredMarkdownExtension()])
     moutput = Markup(output)
     return moutput
 
@@ -576,7 +578,7 @@ def run():
         create_db()
     elif args.hash_password is not None:
         print(hash_password(args.hash_password))
-    elif args.count_posts is not None:
+    elif args.count_posts:
         c = Post.query.count()
         print(f'Found {c} posts.')
     elif args.reset_slug is not None:
