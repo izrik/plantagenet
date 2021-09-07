@@ -537,6 +537,7 @@ def logout():
 
 
 def create_db():
+    print('Setting up the database')
     db.create_all()
 
 
@@ -574,7 +575,6 @@ def run():
     print('Local Resources: {}'.format(Config.LOCAL_RESOURCES))
 
     if args.create_db:
-        print('Setting up the database')
         create_db()
     elif args.hash_password is not None:
         print(hash_password(args.hash_password))
