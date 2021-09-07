@@ -536,7 +536,7 @@ def logout():
     return redirect("/")
 
 
-def create_db():
+def cmd_create_db():
     print('Setting up the database')
     db.create_all()
 
@@ -575,7 +575,7 @@ def run():
     print('Local Resources: {}'.format(Config.LOCAL_RESOURCES))
 
     if args.create_db:
-        create_db()
+        cmd_create_db()
     elif args.hash_password is not None:
         print(hash_password(args.hash_password))
     elif args.count_posts:
