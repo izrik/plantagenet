@@ -22,6 +22,7 @@
 import argparse
 from datetime import datetime
 from itertools import cycle
+import os
 from os import environ
 import random
 import re
@@ -33,6 +34,7 @@ from flask import Markup
 from flask import redirect
 from flask import render_template
 from flask import request
+from flask import send_from_directory
 from flask import url_for
 from flask_bcrypt import Bcrypt
 from flask_login import AnonymousUserMixin
@@ -81,6 +83,8 @@ class Config(object):
     CUSTOM_TEMPLATES = environ.get('PLANTAGENET_CUSTOM_TEMPLATES', None)
     AUTHOR = environ.get('PLANTAGENET_AUTHOR', 'The Author')
     LOCAL_RESOURCES = environ.get('PLANTAGENET_LOCAL_RESOURCES', False)
+    EXTERN_ROOT = environ.get('PLANTAGENET_EXTERN_ROOT', None)
+    EXTRA_LINKS = environ.get('PLANTAGENET_EXTRA_LINKS', '')
 
 
 if __name__ == "__main__":
@@ -117,6 +121,16 @@ if __name__ == "__main__":
                         default=Config.LOCAL_RESOURCES,
                         help='Use local resources (CSS and JS served from the '
                              'app instead of from global URLs).')
+    parser.add_argument('--extern-root', type=str,
+                        default=Config.EXTERN_ROOT,
+                        help='Path to a directory containing external pages '
+                             '(under pages/) and other static files to serve '
+                             'under /pages/.')
+    parser.add_argument('--extra-links', type=str,
+                        default=Config.EXTRA_LINKS,
+                        help='Comma-separated list of Label:URL pairs to add '
+                             'to the navbar, e.g. "About:/pages/about.html,'
+                             'Resume:/pages/resume.pdf".')
 
     parser.add_argument('--create-secret-key', action='store_true')
     parser.add_argument('--create-db', action='store_true')
@@ -151,15 +165,20 @@ if __name__ == "__main__":
     Config.CUSTOM_TEMPLATES = args.custom_templates
     Config.AUTHOR = args.author
     Config.LOCAL_RESOURCES = args.local_resources
+    Config.EXTERN_ROOT = args.extern_root
+    Config.EXTRA_LINKS = args.extra_links
 
 
 app = Flask(__name__)
 
+extra_loaders = []
 if Config.CUSTOM_TEMPLATES:
-    loader = jinja2.ChoiceLoader([
-        jinja2.FileSystemLoader(Config.CUSTOM_TEMPLATES),
-        app.jinja_loader])
-    app.jinja_loader = loader
+    extra_loaders.append(jinja2.FileSystemLoader(Config.CUSTOM_TEMPLATES))
+if Config.EXTERN_ROOT:
+    extra_loaders.append(jinja2.FileSystemLoader(Config.EXTERN_ROOT))
+if extra_loaders:
+    extra_loaders.append(app.jinja_loader)
+    app.jinja_loader = jinja2.ChoiceLoader(extra_loaders)
 
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config["SECRET_KEY"] = Config.SECRET_KEY  # for WTF-forms and login
@@ -341,6 +360,17 @@ class Options(object):
     @staticmethod
     def should_use_local_resources():
         return Config.LOCAL_RESOURCES
+
+    @staticmethod
+    def get_extra_links():
+        raw = Options.get('extra_links', Config.EXTRA_LINKS)
+        links = []
+        for item in raw.split(','):
+            item = item.strip()
+            if ':' in item:
+                label, url = item.split(':', 1)
+                links.append((label.strip(), url.strip()))
+        return links
 
 
 @login_manager.user_loader
@@ -536,8 +566,23 @@ def logout():
     return redirect("/")
 
 
-def create_db():
-    db.create_all()
+@app.route('/pages/<path:filename>')
+def get_page(filename):
+    if not Config.EXTERN_ROOT:
+        raise NotFound()
+    if filename.endswith('.html'):
+        try:
+            return render_template('pages/' + filename)
+        except jinja2.TemplateNotFound:
+            raise NotFound()
+    pages_dir = os.path.join(Config.EXTERN_ROOT, 'pages')
+    return send_from_directory(pages_dir, filename)
+
+
+def cmd_create_db():
+    print('Setting up the database')
+    with app.app_context():
+        db.create_all()
 
 
 def hash_password(unhashed_password):
@@ -566,6 +611,10 @@ def run():
     print('Debug: {}'.format(Config.DEBUG))
     if Config.CUSTOM_TEMPLATES:
         print('Custom template path: {}'.format(Config.CUSTOM_TEMPLATES))
+    if Config.EXTERN_ROOT:
+        print('Extern root: {}'.format(Config.EXTERN_ROOT))
+    if Config.EXTRA_LINKS:
+        print('Extra links: {}'.format(Config.EXTRA_LINKS))
     if Config.DEBUG:
         print('DB URI: {}'.format(Config.DB_URI))
         print('DB URI File: {}'.format(Config.DB_URI_FILE))
@@ -574,8 +623,7 @@ def run():
     print('Local Resources: {}'.format(Config.LOCAL_RESOURCES))
 
     if args.create_db:
-        print('Setting up the database')
-        create_db()
+        cmd_create_db()
     elif args.hash_password is not None:
         print(hash_password(args.hash_password))
     elif args.count_posts:
