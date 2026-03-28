@@ -10,7 +10,6 @@ six==1.17.0
 SQLAlchemy==2.0.40
 Unidecode==0.4.19
 Werkzeug==3.1.7
-GitPython==3.0.2
-gitdb2==2.0.6
+GitPython==3.1.46
 py-gfm==2.0.0
 python-dateutil==2.6.0
