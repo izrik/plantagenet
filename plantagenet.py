@@ -24,8 +24,8 @@ from datetime import datetime
 from itertools import cycle
 import os
 from os import environ
-import random
 import re
+import secrets
 
 import dateutil.parser
 from flask import flash
@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
     if args.create_secret_key:
         digits = '0123456789abcdef'
-        key = ''.join((random.choice(digits) for x in range(48)))
+        key = ''.join((secrets.choice(digits) for x in range(48)))
         print(key)
         exit(0)
 
@@ -395,7 +395,7 @@ def render_gfm(s):
     from mdx_gfm import GithubFlavoredMarkdownExtension
     output = markdown.markdown(
         s, extensions=[GithubFlavoredMarkdownExtension()])
-    moutput = Markup(output)
+    moutput = Markup(output)  # nosec B704 - trusted author content
     return moutput
 
 
