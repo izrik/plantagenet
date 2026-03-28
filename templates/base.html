@@ -57,6 +57,11 @@
                     <li>
                         <a class="nav-link" href="{{ url_for('list_tags') }}">Tags</a>
                     </li>
+                    {% for label, url in Options.get_extra_links() %}
+                    <li>
+                        <a class="nav-link" href="{{ url }}">{{ label }}</a>
+                    </li>
+                    {% endfor %}
                 </ul>
             </div>
         </div>
