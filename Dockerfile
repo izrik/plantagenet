@@ -25,8 +25,8 @@ COPY templates templates
 RUN apk add --virtual .build-deps gcc musl-dev libffi-dev postgresql-dev g++ && \
     apk add libpq git bash && \
     pip install -r requirements.txt \
-                gunicorn==19.8.1 \
-                psycopg2==2.8.6 && \
+                gunicorn==23.0.0 \
+                psycopg2==2.9.10 && \
     apk --purge del .build-deps
 
 EXPOSE 8080
