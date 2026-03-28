@@ -23,6 +23,7 @@ class PostTest(unittest.TestCase):
 
     def tearDown(self):
         app.db.session.rollback()
+        app.db.drop_all()
 
     def test_init(self):
         # when a Post is created
@@ -302,7 +303,7 @@ class CreateDbTest(unittest.TestCase):
         self.assertRaises(OperationalError, plantagenet.Option.query.first)
 
         # when the create_db function is called
-        plantagenet.create_db()
+        plantagenet.cmd_create_db()
 
         # then the database tables are created
         self.assertIsNone(plantagenet.Post.query.first())

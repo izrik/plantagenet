@@ -570,7 +570,10 @@ def get_page(filename):
     if not Config.EXTERN_ROOT:
         raise NotFound()
     if filename.endswith('.html'):
-        return render_template('pages/' + filename)
+        try:
+            return render_template('pages/' + filename)
+        except jinja2.TemplateNotFound:
+            raise NotFound()
     pages_dir = os.path.join(Config.EXTERN_ROOT, 'pages')
     return send_from_directory(pages_dir, filename)
 
