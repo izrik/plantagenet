@@ -304,9 +304,11 @@ class CreateDbTest(unittest.TestCase):
             def query_post():
                 plantagenet.db.session.execute(
                     plantagenet.db.select(plantagenet.Post)).first()
+
             def query_tag():
                 plantagenet.db.session.execute(
                     plantagenet.db.select(plantagenet.Tag)).first()
+
             def query_option():
                 plantagenet.db.session.execute(
                     plantagenet.db.select(plantagenet.Option)).first()

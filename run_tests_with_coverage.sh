@@ -6,7 +6,7 @@ coverage run --source=plantagenet -m pytest run_tests.py test_extern.py "$@" && 
     shellcheck run_tests_with_coverage.sh && \
     markdownlint README.md && \
     csslint static/plantagenet.css && \
-    safety check && \
+    pip-audit && \
     dockerlint Dockerfile && \
     dockerfile_lint Dockerfile &&
     echo Success
