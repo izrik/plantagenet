@@ -580,7 +580,8 @@ def get_page(filename):
 
 def cmd_create_db():
     print('Setting up the database')
-    db.create_all()
+    with app.app_context():
+        db.create_all()
 
 
 def hash_password(unhashed_password):
