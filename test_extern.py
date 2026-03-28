@@ -4,7 +4,7 @@ import tempfile
 import jinja2
 import pytest
 
-from plantagenet import app, Config, Options
+from plantagenet import app, Config, Option, Options
 
 
 @pytest.fixture(autouse=True)
@@ -55,6 +55,17 @@ class TestGetExtraLinks:
     def test_whitespace_is_stripped(self):
         Config.EXTRA_LINKS = ' About : /pages/about.html '
         assert Options.get_extra_links() == [('About', '/pages/about.html')]
+
+    def test_db_option_takes_precedence_over_envvar(self):
+        Config.EXTRA_LINKS = 'Envvar:/envvar'
+        with app.app_context():
+            app.db.session.add(Option('extra_links', 'DB:/db'))
+            assert Options.get_extra_links() == [('DB', '/db')]
+
+    def test_falls_back_to_envvar_when_db_option_absent(self):
+        Config.EXTRA_LINKS = 'Envvar:/envvar'
+        with app.app_context():
+            assert Options.get_extra_links() == [('Envvar', '/envvar')]
 
 
 class TestGetPage:

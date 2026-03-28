@@ -363,8 +363,9 @@ class Options(object):
 
     @staticmethod
     def get_extra_links():
+        raw = Options.get('extra_links', Config.EXTRA_LINKS)
         links = []
-        for item in Config.EXTRA_LINKS.split(','):
+        for item in raw.split(','):
             item = item.strip()
             if ':' in item:
                 label, url = item.split(':', 1)
