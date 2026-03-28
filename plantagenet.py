@@ -30,7 +30,7 @@ import re
 import dateutil.parser
 from flask import flash
 from flask import Flask
-from flask import Markup
+from markupsafe import Markup
 from flask import redirect
 from flask import render_template
 from flask import request
@@ -245,7 +245,7 @@ class Post(db.Model):
     last_updated_date = db.Column(db.DateTime, nullable=False)
     is_draft = db.Column(db.Boolean, nullable=False, default=False)
     tags = db.relationship('Tag', secondary=tags_table,
-                           backref=db.backref('posts', lazy='dynamic'))
+                           backref=db.backref('posts'))
 
     def __init__(self, title, content, date, is_draft=False, notes=None):
         self.title = title
@@ -280,14 +280,21 @@ class Post(db.Model):
 
     @classmethod
     def get_by_slug(cls, slug):
-        return Post.query.filter_by(slug=slug).first()
+        return db.session.execute(
+            db.select(Post).filter_by(slug=slug)).scalar()
 
     @classmethod
     def get_unique_slug(cls, title):
         slug = slugify(title)
-        if Post.query.filter_by(slug=slug).count() > 0:
+
+        def slug_count(s):
+            return db.session.execute(
+                db.select(db.func.count(Post.id)).where(
+                    Post.slug == s)).scalar()
+
+        if slug_count(slug) > 0:
             i = 1
-            while Post.query.filter_by(slug=slug).count() > 0:
+            while slug_count(slug) > 0:
                 slug = slugify('{} {}'.format(title, i))
                 i += 1
         return slug
@@ -323,7 +330,7 @@ class Option(db.Model):
 class Options(object):
     @staticmethod
     def get(key, default_value=None):
-        option = Option.query.get(key)
+        option = db.session.get(Option, key)
         if option is None:
             return default_value
         return option.value
@@ -394,13 +401,12 @@ def render_gfm(s):
 
 @app.route("/")
 def index():
-    query = Post.query
+    stmt = db.select(Post)
     if not current_user.is_authenticated:
-        query = query.filter_by(is_draft=False)
-    query = query.order_by(Post.date.desc())
-    pager = query.paginate()
-    posts = query
-    return render_template("index.html", posts=posts, pager=pager)
+        stmt = stmt.filter_by(is_draft=False)
+    stmt = stmt.order_by(Post.date.desc())
+    pager = db.paginate(stmt)
+    return render_template("index.html", pager=pager)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -408,7 +414,7 @@ def login():
     if request.method == 'GET':
         return render_template('login.html')
 
-    nvp = Option.query.get('hashed_password')
+    nvp = db.session.get(Option, 'hashed_password')
     if not nvp:
         raise ServiceUnavailable('No password set')
     stored_password = nvp.value
@@ -437,21 +443,21 @@ def get_post(slug):
     user = current_user
 
     if current_user.is_authenticated:
-        next_post = Post.query\
-            .filter(Post.date > post.date)\
-            .order_by(Post.date.asc()).limit(1).first()
-        prev_post = Post.query\
-            .filter(Post.date < post.date)\
-            .order_by(Post.date.desc()).limit(1).first()
+        next_post = db.session.execute(
+            db.select(Post).where(Post.date > post.date)
+            .order_by(Post.date.asc()).limit(1)).scalar()
+        prev_post = db.session.execute(
+            db.select(Post).where(Post.date < post.date)
+            .order_by(Post.date.desc()).limit(1)).scalar()
     else:
-        next_post = Post.query\
-            .filter_by(is_draft=False)\
-            .filter(Post.date > post.date)\
-            .order_by(Post.date.asc()).limit(1).first()
-        prev_post = Post.query\
-            .filter_by(is_draft=False)\
-            .filter(Post.date < post.date)\
-            .order_by(Post.date.desc()).limit(1).first()
+        next_post = db.session.execute(
+            db.select(Post).filter_by(is_draft=False)
+            .where(Post.date > post.date)
+            .order_by(Post.date.asc()).limit(1)).scalar()
+        prev_post = db.session.execute(
+            db.select(Post).filter_by(is_draft=False)
+            .where(Post.date < post.date)
+            .order_by(Post.date.desc()).limit(1)).scalar()
 
     return render_template('post.html', config=Config, post=post, user=user,
                            next_post=next_post, prev_post=prev_post)
@@ -489,7 +495,8 @@ def edit_post(slug):
         if name)
     next_tags = set()
     for name in next_tag_names:
-        tag = Tag.query.filter_by(name=name).first()
+        tag = db.session.execute(
+            db.select(Tag).filter_by(name=name)).scalar()
         if tag is None:
             tag = Tag(name)
         next_tags.add(tag)
@@ -532,7 +539,8 @@ def create_new():
         if name)
     next_tags = set()
     for name in next_tag_names:
-        tag = Tag.query.filter_by(name=name).first()
+        tag = db.session.execute(
+            db.select(Tag).filter_by(name=name)).scalar()
         if tag is None:
             tag = Tag(name)
         next_tags.add(tag)
@@ -546,17 +554,17 @@ def create_new():
 
 @app.route('/tags', methods=['GET'])
 def list_tags():
-    tags = Tag.query
+    tags = db.session.execute(db.select(Tag)).scalars()
     return render_template('list_tags.html', tags=tags)
 
 
 @app.route('/tags/<tag_id>', methods=['GET'])
 def get_tag(tag_id):
-    tag = Tag.query.get(tag_id)
-    query = tag.posts
+    tag = db.session.get(Tag, tag_id)
+    stmt = db.select(Post).join(Post.tags).where(Tag.id == tag_id)
     if not current_user.is_authenticated:
-        query = query.filter_by(is_draft=False)
-    posts = query
+        stmt = stmt.where(Post.is_draft == False)  # noqa: E712
+    posts = db.session.execute(stmt).scalars()
     return render_template("tag.html", tag=tag, posts=posts)
 
 
@@ -590,7 +598,7 @@ def hash_password(unhashed_password):
 
 
 def reset_slug(post_id):
-    post = Post.query.get(post_id)
+    post = db.session.get(Post, post_id)
     if not post:
         msg = 'No post found with id {}'.format(post_id)
         raise NotFound(msg)
@@ -627,7 +635,8 @@ def run():
     elif args.hash_password is not None:
         print(hash_password(args.hash_password))
     elif args.count_posts:
-        c = Post.query.count()
+        c = db.session.execute(
+            db.select(db.func.count()).select_from(Post)).scalar()
         print(f'Found {c} posts.')
     elif args.reset_slug is not None:
         try:
@@ -636,7 +645,7 @@ def run():
             print(e.description)
     elif args.set_date is not None:
         post_id, new_date = args.set_date
-        post = Post.query.get(post_id)
+        post = db.session.get(Post, post_id)
         if not post:
             print('No post found with id {}'.format(post_id))
             exit(1)
@@ -648,7 +657,7 @@ def run():
         print('New date is "{}"'.format(post.date))
     elif args.set_last_updated_date is not None:
         post_id, new_date = args.set_last_updated_date
-        post = Post.query.get(post_id)
+        post = db.session.get(Post, post_id)
         if not post:
             print('No post found with id {}'.format(post_id))
             exit(1)
@@ -660,7 +669,7 @@ def run():
         print('New last updated date is "{}"'.format(post.last_updated_date))
     elif args.reset_summary is not None:
         post_id = args.reset_summary
-        post = Post.query.get(post_id)
+        post = db.session.get(Post, post_id)
         if not post:
             print('No post found with id {}'.format(post_id))
             exit(1)
@@ -672,7 +681,7 @@ def run():
         print('New summary is "{}"'.format(post.summary))
     elif args.set_option is not None:
         name, value = args.set_option
-        option = Option.query.get(name)
+        option = db.session.get(Option, name)
         if option:
             print('Setting the value for option {}'.format(name))
             print('Old value is "{}"'.format(option.value))
@@ -685,7 +694,7 @@ def run():
         print('New value is "{}"'.format(option.value))
     elif args.clear_option is not None:
         name = args.clear_option
-        option = Option.query.get(name)
+        option = db.session.get(Option, name)
         if not option:
             print('No option found with name {}'.format(name))
             exit(1)
