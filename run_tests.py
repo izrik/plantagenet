@@ -18,12 +18,14 @@ class PostTest(unittest.TestCase):
         app.config['TESTING'] = True
         self.cl = app.test_client()
         app.testing = True
-        with app.app_context():
-            app.db.create_all()
+        self.ctx = app.app_context()
+        self.ctx.push()
+        app.db.create_all()
 
     def tearDown(self):
         app.db.session.rollback()
         app.db.drop_all()
+        self.ctx.pop()
 
     def test_init(self):
         # when a Post is created
@@ -298,17 +300,33 @@ class CreateDbTest(unittest.TestCase):
         app.testing = True
 
         # precondition: the database table have not been created yet
-        self.assertRaises(OperationalError, plantagenet.Post.query.first)
-        self.assertRaises(OperationalError, plantagenet.Tag.query.first)
-        self.assertRaises(OperationalError, plantagenet.Option.query.first)
+        with app.app_context():
+            def query_post():
+                plantagenet.db.session.execute(
+                    plantagenet.db.select(plantagenet.Post)).first()
+
+            def query_tag():
+                plantagenet.db.session.execute(
+                    plantagenet.db.select(plantagenet.Tag)).first()
+
+            def query_option():
+                plantagenet.db.session.execute(
+                    plantagenet.db.select(plantagenet.Option)).first()
+            self.assertRaises(OperationalError, query_post)
+            self.assertRaises(OperationalError, query_tag)
+            self.assertRaises(OperationalError, query_option)
 
         # when the create_db function is called
         plantagenet.cmd_create_db()
 
         # then the database tables are created
-        self.assertIsNone(plantagenet.Post.query.first())
-        self.assertIsNone(plantagenet.Tag.query.first())
-        self.assertIsNone(plantagenet.Option.query.first())
+        with app.app_context():
+            self.assertIsNone(plantagenet.db.session.execute(
+                plantagenet.db.select(plantagenet.Post)).first())
+            self.assertIsNone(plantagenet.db.session.execute(
+                plantagenet.db.select(plantagenet.Tag)).first())
+            self.assertIsNone(plantagenet.db.session.execute(
+                plantagenet.db.select(plantagenet.Option)).first())
 
 
 class HashPasswordTest(unittest.TestCase):
@@ -330,12 +348,14 @@ class CliCommandsTest(unittest.TestCase):
         app.config['TESTING'] = True
         self.cl = app.test_client()
         app.testing = True
-        with app.app_context():
-            app.db.create_all()
+        self.ctx = app.app_context()
+        self.ctx.push()
+        app.db.create_all()
 
     def tearDown(self):
         app.db.session.rollback()
         app.db.drop_all()
+        self.ctx.pop()
 
     def test_reset_slug(self):
         # given a post with a non-standard slug is put into the db
