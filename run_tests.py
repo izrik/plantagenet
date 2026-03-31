@@ -390,6 +390,76 @@ class CliCommandsTest(unittest.TestCase):
         self.assertRaises(NotFound, plantagenet.reset_slug, 1)
 
 
+class ListTagsTest(unittest.TestCase):
+    def setUp(self):
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
+        app.config['TESTING'] = True
+        app.testing = True
+        self.ctx = app.app_context()
+        self.ctx.push()
+        app.db.create_all()
+        self.cl = app.test_client()
+
+    def tearDown(self):
+        app.db.session.rollback()
+        app.db.drop_all()
+        self.ctx.pop()
+
+    def test_list_tags_returns_200(self):
+        # when
+        response = self.cl.get('/tags')
+
+        # then
+        self.assertEqual(200, response.status_code)
+
+    def test_list_tags_shows_tag_with_published_post(self):
+        # given a tag with one published post
+        tag = plantagenet.Tag('mytag')
+        post = plantagenet.Post('title', 'content', datetime(2017, 1, 1))
+        post.tags.append(tag)
+        app.db.session.add(post)
+        app.db.session.commit()
+
+        # when an unauthenticated user visits /tags
+        response = self.cl.get('/tags')
+
+        # then the tag is visible
+        self.assertIn(b'mytag', response.data)
+
+    def test_list_tags_hides_tag_with_only_draft_posts(self):
+        # given a tag whose only post is a draft
+        tag = plantagenet.Tag('drafttag')
+        post = plantagenet.Post('title', 'content', datetime(2017, 1, 1),
+                                is_draft=True)
+        post.tags.append(tag)
+        app.db.session.add(post)
+        app.db.session.commit()
+
+        # when an unauthenticated user visits /tags
+        response = self.cl.get('/tags')
+
+        # then the tag is not visible
+        self.assertNotIn(b'drafttag', response.data)
+
+    def test_list_tags_authenticated_shows_tag_with_only_draft_posts(self):
+        # given a tag whose only post is a draft
+        tag = plantagenet.Tag('drafttag')
+        post = plantagenet.Post('title', 'content', datetime(2017, 1, 1),
+                                is_draft=True)
+        post.tags.append(tag)
+        app.db.session.add(post)
+        app.db.session.commit()
+
+        # when an authenticated user visits /tags
+        with self.cl.session_transaction() as sess:
+            sess['_user_id'] = 'admin'
+            sess['_fresh'] = True
+        response = self.cl.get('/tags')
+
+        # then the tag is visible
+        self.assertIn(b'drafttag', response.data)
+
+
 class VersionTest(unittest.TestCase):
     def test_version_number_is_correct(self):
         from plantagenet import Options
