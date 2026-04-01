@@ -555,7 +555,21 @@ def create_new():
 @app.route('/tags', methods=['GET'])
 def list_tags():
     tags = db.session.execute(db.select(Tag)).scalars()
-    return render_template('list_tags.html', tags=tags)
+    if current_user.is_authenticated:
+        def post_count(tag):
+            return db.session.execute(
+                db.select(db.func.count()).select_from(Post)
+                .join(Post.tags).where(Tag.id == tag.id)
+            ).scalar()
+    else:
+        def post_count(tag):
+            return db.session.execute(
+                db.select(db.func.count()).select_from(Post)
+                .join(Post.tags).where(Tag.id == tag.id)
+                .where(Post.is_draft == False)  # noqa: E712
+            ).scalar()
+    tag_counts = [(tag, post_count(tag)) for tag in tags]
+    return render_template('list_tags.html', tag_counts=tag_counts)
 
 
 @app.route('/tags/<tag_id>', methods=['GET'])

@@ -24,12 +24,7 @@
     <div class="index-tag-list">
     {% set index = Options.seq().__next__ %}
     {% set odd_even = Options.cycle(['odd', 'even']).__next__ %}
-    {% for tag in tags %}
-        {% if current_user.is_authenticated %}{%
-            set post_count = tag.posts.count()
-        %}{% else %}{%
-            set post_count = tag.posts.filter_by(is_draft=False).count()
-        %}{% endif %}
+    {% for tag, post_count in tag_counts %}
         {% if post_count > 0 %}
         <div class="index-tag index-tag-id-{{tag.id}} index-tag-index-{{index()}} index-tag-{{odd_even()}}">
             <a href="{{ url_for('get_tag', tag_id=tag.id) }}">
