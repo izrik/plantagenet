@@ -45,6 +45,7 @@ from flask_login import LoginManager
 from flask_login import logout_user
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 import gfm  # noqa: F401
 import git
 import jinja2
@@ -738,6 +739,72 @@ def get_page(filename):
     return send_from_directory(pages_dir, filename)
 
 
+def run_migrations(engine):
+    migrations_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), 'migrations')
+    if not os.path.isdir(migrations_dir):
+        return
+
+    migration_re = re.compile(r'^v(\d+)\.(\d+)(?:\.(\d+))?\.sql$')
+    files = []
+    for fname in os.listdir(migrations_dir):
+        m = migration_re.match(fname)
+        if m:
+            major = int(m.group(1))
+            minor = int(m.group(2))
+            patch = int(m.group(3)) if m.group(3) is not None else 0
+            version_str = fname[1:-4]  # strip leading 'v' and trailing '.sql'
+            files.append(((major, minor, patch), version_str, fname))
+
+    files.sort(key=lambda x: x[0])
+
+    with engine.connect() as conn:
+        conn.execute(text(
+            'CREATE TABLE IF NOT EXISTS schema_migrations '
+            '(version TEXT PRIMARY KEY, '
+            "applied_at TEXT NOT NULL DEFAULT (datetime('now')))"
+        ))
+        conn.commit()
+
+        applied = {
+            row[0] for row in conn.execute(
+                text('SELECT version FROM schema_migrations'))
+        }
+
+        for _version_tuple, version_str, fname in files:
+            if version_str in applied:
+                continue
+
+            print(f'[migrations] applying v{version_str}...')
+
+            fpath = os.path.join(migrations_dir, fname)
+            with open(fpath) as f:
+                sql_content = f.read()
+
+            statements = []
+            for chunk in sql_content.split(';'):
+                non_comment = [
+                    line for line in chunk.splitlines()
+                    if line.strip() and not line.strip().startswith('--')
+                ]
+                if non_comment:
+                    statements.append(chunk.strip())
+
+            try:
+                for stmt in statements:
+                    conn.execute(text(stmt))
+                conn.execute(
+                    text('INSERT INTO schema_migrations (version) '
+                         'VALUES (:v)'),
+                    {'v': version_str}
+                )
+                conn.commit()
+                print(f'[migrations] v{version_str} applied.')
+            except Exception:
+                conn.rollback()
+                raise
+
+
 def cmd_create_db():
     print('Setting up the database')
     with app.app_context():
@@ -856,6 +923,10 @@ def run():
     else:
         app.run(debug=Config.DEBUG, host=Config.HOST, port=Config.PORT,
                 use_reloader=Config.DEBUG)
+
+
+with app.app_context():
+    run_migrations(db.engine)
 
 
 if __name__ == "__main__":
