@@ -1,0 +1,43 @@
+{# plantagenet - a python blogging system
+   Copyright (C) 2016-2017 izrik
+
+   This file is a part of plantagenet.
+
+   Plantagenet is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   Plantagenet is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with plantagenet.  If not, see <http://www.gnu.org/licenses/>.
+#}
+
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="container">
+    {% if current_user.is_authenticated %}
+    <div>
+        <a class="btn btn-primary" href="{{ url_for('create_new_page') }}">New Page</a>
+    </div>
+    {% endif %}
+    <div class="index-page-list">
+    {% for page in pages %}
+        <div class="index-page index-page-id-{{page.id}}">
+            <a href="{{ url_for('view_page', slug=page.slug) }}">
+                <h1>{{ page.title }}{% if page.is_draft %} <small>(Draft)</small>{% endif %}</h1>
+            </a>
+            <hr/>
+        </div>
+    {% else %}
+        <p>No pages found</p>
+    {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

@@ -318,6 +318,67 @@ class Tag(db.Model):
         self.name = name
 
 
+class Page(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    _title = db.Column(db.String(100), name='title')
+    slug = db.Column(db.String(100), index=True, unique=True)
+    _content = db.Column(db.Text, name='content')
+    notes = db.Column(db.Text)
+    date = db.Column(db.DateTime)
+    last_updated_date = db.Column(db.DateTime, nullable=False)
+    published_date = db.Column(db.DateTime, nullable=True)
+    is_draft = db.Column(db.Boolean, nullable=False, default=False)
+
+    def __init__(self, title, content, date, is_draft=False, notes=None):
+        self.title = title
+        self.content = content
+        self.date = date
+        self.last_updated_date = date
+        self.is_draft = is_draft
+        self.notes = notes
+
+    @property
+    def content(self):
+        return self._content
+
+    @content.setter
+    def content(self, value):
+        if value is None:
+            value = ''
+        self._content = str(value)
+
+    @classmethod
+    def get_by_slug(cls, slug):
+        return db.session.execute(
+            db.select(Page).filter_by(slug=slug)).scalar()
+
+    @classmethod
+    def get_unique_slug(cls, title):
+        slug = slugify(title)
+
+        def slug_count(s):
+            return db.session.execute(
+                db.select(db.func.count(Page.id)).where(
+                    Page.slug == s)).scalar()
+
+        if slug_count(slug) > 0:
+            i = 1
+            while slug_count(slug) > 0:
+                slug = slugify('{} {}'.format(title, i))
+                i += 1
+        return slug
+
+    @property
+    def title(self):
+        return self._title
+
+    @title.setter
+    def title(self, value):
+        self._title = value
+        if not self.slug and self._title:
+            self.slug = self.get_unique_slug(self._title)
+
+
 class Option(db.Model):
     name = db.Column(db.String(100), primary_key=True)
     value = db.Column(db.String(100), nullable=True)
@@ -580,6 +641,82 @@ def get_tag(tag_id):
         stmt = stmt.where(Post.is_draft == False)  # noqa: E712
     posts = db.session.execute(stmt).scalars()
     return render_template("tag.html", tag=tag, posts=posts)
+
+
+@app.route('/page', methods=['GET'])
+def list_pages():
+    stmt = db.select(Page)
+    if not current_user.is_authenticated:
+        stmt = stmt.filter_by(is_draft=False)
+    stmt = stmt.order_by(Page._title.asc())
+    pages = db.session.execute(stmt).scalars()
+    return render_template('list_pages.html', pages=pages)
+
+
+@app.route('/page/<slug>', methods=['GET'])
+def view_page(slug):
+    page = Page.get_by_slug(slug)
+    if not page:
+        raise NotFound()
+    if page.is_draft and not current_user.is_authenticated:
+        raise Unauthorized()
+    return render_template('page.html', page=page)
+
+
+@app.route('/page/<slug>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_page(slug):
+    page = Page.get_by_slug(slug)
+    if not page:
+        raise NotFound()
+    if request.method == 'GET':
+        return render_template('edit_page.html', page=page,
+                               page_url=url_for('edit_page', slug=page.slug))
+
+    title = request.form['title'].strip()
+    if not title or not slugify(title).strip():
+        raise BadRequest("The page's title is invalid.")
+    content = request.form['content']
+    notes = request.form['notes']
+    is_draft = not (not ('is_draft' in request.form and
+                         request.form['is_draft']))
+
+    page.title = title
+    page.content = content
+    page.notes = notes
+    page.last_updated_date = datetime.now()
+    if not is_draft and page.published_date is None:
+        page.published_date = datetime.now()
+    page.is_draft = is_draft
+
+    db.session.add(page)
+    db.session.commit()
+    return redirect(url_for('view_page', slug=page.slug))
+
+
+@app.route('/new-page', methods=['GET', 'POST'])
+@login_required
+def create_new_page():
+    if request.method == 'GET':
+        page = Page('', '', datetime.now(), True)
+        return render_template('edit_page.html', page=page,
+                               page_url=url_for('create_new_page'))
+
+    title = request.form['title'].strip()
+    if not title or not slugify(title).strip():
+        raise BadRequest("The page's title is invalid.")
+    content = request.form['content']
+    notes = request.form['notes']
+    is_draft = not (not ('is_draft' in request.form and
+                         request.form['is_draft']))
+
+    page = Page(title, content, datetime.now(), is_draft, notes)
+    if not is_draft:
+        page.published_date = page.date
+
+    db.session.add(page)
+    db.session.commit()
+    return redirect(url_for('view_page', slug=page.slug))
 
 
 @app.route("/logout")
