@@ -460,6 +460,193 @@ class ListTagsTest(unittest.TestCase):
         self.assertIn(b'drafttag', response.data)
 
 
+class ListPagesTest(unittest.TestCase):
+    def setUp(self):
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
+        app.config['TESTING'] = True
+        app.testing = True
+        self.ctx = app.app_context()
+        self.ctx.push()
+        app.db.create_all()
+        self.cl = app.test_client()
+
+    def tearDown(self):
+        app.db.session.rollback()
+        app.db.drop_all()
+        self.ctx.pop()
+
+    def test_list_pages_returns_200(self):
+        response = self.cl.get('/page')
+        self.assertEqual(200, response.status_code)
+
+    def test_list_pages_shows_published_page(self):
+        page = plantagenet.Page('My Page', 'content', datetime(2024, 1, 1))
+        app.db.session.add(page)
+        app.db.session.commit()
+
+        response = self.cl.get('/page')
+        self.assertIn(b'My Page', response.data)
+
+    def test_list_pages_hides_draft_from_unauthenticated(self):
+        page = plantagenet.Page('Secret Page', 'content', datetime(2024, 1, 1),
+                                is_draft=True)
+        app.db.session.add(page)
+        app.db.session.commit()
+
+        response = self.cl.get('/page')
+        self.assertNotIn(b'Secret Page', response.data)
+
+    def test_list_pages_shows_draft_to_authenticated(self):
+        page = plantagenet.Page('Secret Page', 'content', datetime(2024, 1, 1),
+                                is_draft=True)
+        app.db.session.add(page)
+        app.db.session.commit()
+
+        with self.cl.session_transaction() as sess:
+            sess['_user_id'] = 'admin'
+            sess['_fresh'] = True
+        response = self.cl.get('/page')
+        self.assertIn(b'Secret Page', response.data)
+
+
+class ViewPageTest(unittest.TestCase):
+    def setUp(self):
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
+        app.config['TESTING'] = True
+        app.testing = True
+        self.ctx = app.app_context()
+        self.ctx.push()
+        app.db.create_all()
+        self.cl = app.test_client()
+
+    def tearDown(self):
+        app.db.session.rollback()
+        app.db.drop_all()
+        self.ctx.pop()
+
+    def test_view_page_returns_200(self):
+        page = plantagenet.Page('My Page', 'content', datetime(2024, 1, 1))
+        app.db.session.add(page)
+        app.db.session.commit()
+
+        response = self.cl.get('/page/{}'.format(page.slug))
+        self.assertEqual(200, response.status_code)
+
+    def test_view_page_shows_content(self):
+        page = plantagenet.Page('My Page', 'Hello World', datetime(2024, 1, 1))
+        app.db.session.add(page)
+        app.db.session.commit()
+
+        response = self.cl.get('/page/{}'.format(page.slug))
+        self.assertIn(b'Hello World', response.data)
+
+    def test_view_page_missing_returns_404(self):
+        response = self.cl.get('/page/no-such-page')
+        self.assertEqual(404, response.status_code)
+
+    def test_view_draft_page_unauthenticated_returns_401(self):
+        page = plantagenet.Page('Draft', 'content', datetime(2024, 1, 1),
+                                is_draft=True)
+        app.db.session.add(page)
+        app.db.session.commit()
+
+        response = self.cl.get('/page/{}'.format(page.slug))
+        self.assertEqual(401, response.status_code)
+
+    def test_view_draft_page_authenticated_returns_200(self):
+        page = plantagenet.Page('Draft', 'content', datetime(2024, 1, 1),
+                                is_draft=True)
+        app.db.session.add(page)
+        app.db.session.commit()
+
+        with self.cl.session_transaction() as sess:
+            sess['_user_id'] = 'admin'
+            sess['_fresh'] = True
+        response = self.cl.get('/page/{}'.format(page.slug))
+        self.assertEqual(200, response.status_code)
+
+
+class PagePublishedDateTest(unittest.TestCase):
+    def setUp(self):
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
+        app.config['TESTING'] = True
+        app.testing = True
+        self.ctx = app.app_context()
+        self.ctx.push()
+        app.db.create_all()
+        self.cl = app.test_client()
+
+    def tearDown(self):
+        app.db.session.rollback()
+        app.db.drop_all()
+        self.ctx.pop()
+
+    def _login(self):
+        with self.cl.session_transaction() as sess:
+            sess['_user_id'] = 'admin'
+            sess['_fresh'] = True
+
+    def test_published_date_none_for_draft(self):
+        page = plantagenet.Page('My Page', 'content', datetime(2024, 1, 1),
+                                is_draft=True)
+        self.assertIsNone(page.published_date)
+
+    def test_published_date_set_on_create_when_not_draft(self):
+        self._login()
+        self.cl.post('/new-page', data={
+            'title': 'My Page',
+            'content': 'content',
+            'notes': '',
+        })
+        page = app.db.session.execute(
+            plantagenet.db.select(plantagenet.Page)).scalar()
+        self.assertIsNotNone(page.published_date)
+
+    def test_published_date_not_set_on_create_when_draft(self):
+        self._login()
+        self.cl.post('/new-page', data={
+            'title': 'My Page',
+            'content': 'content',
+            'notes': '',
+            'is_draft': 'on',
+        })
+        page = app.db.session.execute(
+            plantagenet.db.select(plantagenet.Page)).scalar()
+        self.assertIsNone(page.published_date)
+
+    def test_published_date_set_when_draft_is_published(self):
+        page = plantagenet.Page('My Page', 'content', datetime(2024, 1, 1),
+                                is_draft=True)
+        app.db.session.add(page)
+        app.db.session.commit()
+        self.assertIsNone(page.published_date)
+
+        self._login()
+        self.cl.post('/page/{}/edit'.format(page.slug), data={
+            'title': page.title,
+            'content': page.content,
+            'notes': '',
+        })
+        app.db.session.refresh(page)
+        self.assertIsNotNone(page.published_date)
+
+    def test_published_date_not_overwritten_on_re_save(self):
+        original_date = datetime(2020, 6, 15)
+        page = plantagenet.Page('My Page', 'content', datetime(2024, 1, 1))
+        page.published_date = original_date
+        app.db.session.add(page)
+        app.db.session.commit()
+
+        self._login()
+        self.cl.post('/page/{}/edit'.format(page.slug), data={
+            'title': page.title,
+            'content': 'updated content',
+            'notes': '',
+        })
+        app.db.session.refresh(page)
+        self.assertEqual(original_date, page.published_date)
+
+
 class VersionTest(unittest.TestCase):
     def test_version_number_is_correct(self):
         from plantagenet import Options

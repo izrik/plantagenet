@@ -45,6 +45,7 @@ from flask_login import LoginManager
 from flask_login import logout_user
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 import gfm  # noqa: F401
 import git
 import jinja2
@@ -318,6 +319,67 @@ class Tag(db.Model):
         self.name = name
 
 
+class Page(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    _title = db.Column(db.String(100), name='title')
+    slug = db.Column(db.String(100), index=True, unique=True)
+    _content = db.Column(db.Text, name='content')
+    notes = db.Column(db.Text)
+    date = db.Column(db.DateTime)
+    last_updated_date = db.Column(db.DateTime, nullable=False)
+    published_date = db.Column(db.DateTime, nullable=True)
+    is_draft = db.Column(db.Boolean, nullable=False, default=False)
+
+    def __init__(self, title, content, date, is_draft=False, notes=None):
+        self.title = title
+        self.content = content
+        self.date = date
+        self.last_updated_date = date
+        self.is_draft = is_draft
+        self.notes = notes
+
+    @property
+    def content(self):
+        return self._content
+
+    @content.setter
+    def content(self, value):
+        if value is None:
+            value = ''
+        self._content = str(value)
+
+    @classmethod
+    def get_by_slug(cls, slug):
+        return db.session.execute(
+            db.select(Page).filter_by(slug=slug)).scalar()
+
+    @classmethod
+    def get_unique_slug(cls, title):
+        slug = slugify(title)
+
+        def slug_count(s):
+            return db.session.execute(
+                db.select(db.func.count(Page.id)).where(
+                    Page.slug == s)).scalar()
+
+        if slug_count(slug) > 0:
+            i = 1
+            while slug_count(slug) > 0:
+                slug = slugify('{} {}'.format(title, i))
+                i += 1
+        return slug
+
+    @property
+    def title(self):
+        return self._title
+
+    @title.setter
+    def title(self, value):
+        self._title = value
+        if not self.slug and self._title:
+            self.slug = self.get_unique_slug(self._title)
+
+
 class Option(db.Model):
     name = db.Column(db.String(100), primary_key=True)
     value = db.Column(db.String(100), nullable=True)
@@ -582,6 +644,82 @@ def get_tag(tag_id):
     return render_template("tag.html", tag=tag, posts=posts)
 
 
+@app.route('/page', methods=['GET'])
+def list_pages():
+    stmt = db.select(Page)
+    if not current_user.is_authenticated:
+        stmt = stmt.filter_by(is_draft=False)
+    stmt = stmt.order_by(Page._title.asc())
+    pages = db.session.execute(stmt).scalars()
+    return render_template('list_pages.html', pages=pages)
+
+
+@app.route('/page/<slug>', methods=['GET'])
+def view_page(slug):
+    page = Page.get_by_slug(slug)
+    if not page:
+        raise NotFound()
+    if page.is_draft and not current_user.is_authenticated:
+        raise Unauthorized()
+    return render_template('page.html', page=page)
+
+
+@app.route('/page/<slug>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_page(slug):
+    page = Page.get_by_slug(slug)
+    if not page:
+        raise NotFound()
+    if request.method == 'GET':
+        return render_template('edit_page.html', page=page,
+                               page_url=url_for('edit_page', slug=page.slug))
+
+    title = request.form['title'].strip()
+    if not title or not slugify(title).strip():
+        raise BadRequest("The page's title is invalid.")
+    content = request.form['content']
+    notes = request.form['notes']
+    is_draft = not (not ('is_draft' in request.form and
+                         request.form['is_draft']))
+
+    page.title = title
+    page.content = content
+    page.notes = notes
+    page.last_updated_date = datetime.now()
+    if not is_draft and page.published_date is None:
+        page.published_date = datetime.now()
+    page.is_draft = is_draft
+
+    db.session.add(page)
+    db.session.commit()
+    return redirect(url_for('view_page', slug=page.slug))
+
+
+@app.route('/new-page', methods=['GET', 'POST'])
+@login_required
+def create_new_page():
+    if request.method == 'GET':
+        page = Page('', '', datetime.now(), True)
+        return render_template('edit_page.html', page=page,
+                               page_url=url_for('create_new_page'))
+
+    title = request.form['title'].strip()
+    if not title or not slugify(title).strip():
+        raise BadRequest("The page's title is invalid.")
+    content = request.form['content']
+    notes = request.form['notes']
+    is_draft = not (not ('is_draft' in request.form and
+                         request.form['is_draft']))
+
+    page = Page(title, content, datetime.now(), is_draft, notes)
+    if not is_draft:
+        page.published_date = page.date
+
+    db.session.add(page)
+    db.session.commit()
+    return redirect(url_for('view_page', slug=page.slug))
+
+
 @app.route("/logout")
 def logout():
     logout_user()
@@ -599,6 +737,72 @@ def get_page(filename):
             raise NotFound()
     pages_dir = os.path.join(Config.EXTERN_ROOT, 'pages')
     return send_from_directory(pages_dir, filename)
+
+
+def run_migrations(engine):
+    migrations_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), 'migrations')
+    if not os.path.isdir(migrations_dir):
+        return
+
+    migration_re = re.compile(r'^v(\d+)\.(\d+)(?:\.(\d+))?\.sql$')
+    files = []
+    for fname in os.listdir(migrations_dir):
+        m = migration_re.match(fname)
+        if m:
+            major = int(m.group(1))
+            minor = int(m.group(2))
+            patch = int(m.group(3)) if m.group(3) is not None else 0
+            version_str = fname[1:-4]  # strip leading 'v' and trailing '.sql'
+            files.append(((major, minor, patch), version_str, fname))
+
+    files.sort(key=lambda x: x[0])
+
+    with engine.connect() as conn:
+        conn.execute(text(
+            'CREATE TABLE IF NOT EXISTS schema_migrations '
+            '(version TEXT PRIMARY KEY, '
+            "applied_at TEXT NOT NULL DEFAULT (datetime('now')))"
+        ))
+        conn.commit()
+
+        applied = {
+            row[0] for row in conn.execute(
+                text('SELECT version FROM schema_migrations'))
+        }
+
+        for _version_tuple, version_str, fname in files:
+            if version_str in applied:
+                continue
+
+            print(f'[migrations] applying v{version_str}...')
+
+            fpath = os.path.join(migrations_dir, fname)
+            with open(fpath) as f:
+                sql_content = f.read()
+
+            statements = []
+            for chunk in sql_content.split(';'):
+                non_comment = [
+                    line for line in chunk.splitlines()
+                    if line.strip() and not line.strip().startswith('--')
+                ]
+                if non_comment:
+                    statements.append(chunk.strip())
+
+            try:
+                for stmt in statements:
+                    conn.execute(text(stmt))
+                conn.execute(
+                    text('INSERT INTO schema_migrations (version) '
+                         'VALUES (:v)'),
+                    {'v': version_str}
+                )
+                conn.commit()
+                print(f'[migrations] v{version_str} applied.')
+            except Exception:
+                conn.rollback()
+                raise
 
 
 def cmd_create_db():
@@ -719,6 +923,10 @@ def run():
     else:
         app.run(debug=Config.DEBUG, host=Config.HOST, port=Config.PORT,
                 use_reloader=Config.DEBUG)
+
+
+with app.app_context():
+    run_migrations(db.engine)
 
 
 if __name__ == "__main__":
