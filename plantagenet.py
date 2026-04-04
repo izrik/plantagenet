@@ -56,12 +56,18 @@ from werkzeug.exceptions import NotFound
 from werkzeug.exceptions import ServiceUnavailable
 from werkzeug.exceptions import Unauthorized
 
-__version__ = '0.2'
 try:
-    __revision__ = git.Repo('.').git.describe(tags=True, dirty=True,
-                                              always=True, abbrev=40)
+    from __version__ import __version__
+except ImportError:
+    __version__ = 'unknown'
+
+try:
+    _repo = git.Repo('.')
+    __revision__ = _repo.head.commit.hexsha
+    if _repo.is_dirty():
+        __revision__ += '-dirty'
 except git.InvalidGitRepositoryError:
-    __revision__ = 'unknown'
+    __revision__ = environ.get('PLANTAGENET_REVISION', 'unknown')
 
 
 class PlantagenetError(Exception):
