@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 
-import argparse
 from datetime import datetime
-import logging
-import unittest
 
+import pytest
 from sqlalchemy.exc import OperationalError
 from werkzeug.exceptions import NotFound
 
@@ -12,8 +10,8 @@ import plantagenet
 from plantagenet import app
 
 
-class PostTest(unittest.TestCase):
-    def setUp(self):
+class TestPost:
+    def setup_method(self):
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
         app.config['TESTING'] = True
         self.cl = app.test_client()
@@ -22,7 +20,7 @@ class PostTest(unittest.TestCase):
         self.ctx.push()
         app.db.create_all()
 
-    def tearDown(self):
+    def teardown_method(self):
         app.db.session.rollback()
         app.db.drop_all()
         self.ctx.pop()
@@ -32,20 +30,20 @@ class PostTest(unittest.TestCase):
         post = plantagenet.Post('title', 'content', datetime(2017, 1, 1))
 
         # then the title is the same as what was passed to the constructor
-        self.assertEqual('title', post.title)
+        assert post.title == 'title'
 
         # then the content is the same as what was passed to the constructor
-        self.assertEqual('content', post.content)
+        assert post.content == 'content'
 
         # then the date is the same as what was passed to the constructor
-        self.assertEqual(datetime(2017, 1, 1), post.date)
+        assert post.date == datetime(2017, 1, 1)
 
     def test_init_optional_arg_is_draft(self):
         # when a Post is created
         post = plantagenet.Post('title', 'content', datetime(2017, 1, 1))
 
         # then optional argument "is_draft" have its default value of False
-        self.assertFalse(post.is_draft)
+        assert not post.is_draft
 
     def test_init_set_is_draft(self):
         # when a Post is created
@@ -53,7 +51,7 @@ class PostTest(unittest.TestCase):
 
         # then the is_draft field is the same as what was passed to the
         # constructor
-        self.assertTrue(post.is_draft)
+        assert post.is_draft
 
     def test_init_set_is_draft_named(self):
         # when a Post is created
@@ -62,39 +60,39 @@ class PostTest(unittest.TestCase):
 
         # then the is_draft field is the same as what was passed to the
         # constructor
-        self.assertTrue(post.is_draft)
+        assert post.is_draft
 
     def test_init_optional_arg_notes(self):
         # when a Post is created
         post = plantagenet.Post('title', 'content', datetime(2017, 1, 1))
 
         # then optional argument "notes" have its default value of None
-        self.assertIsNone(post.notes)
+        assert post.notes is None
 
     def test_init_set_notes(self):
         # when a Post is created
         post = plantagenet.Post('title', 'content', datetime(2017, 1, 1),
                                 False, 'notes')
 
-        # then the is_draft field is the same as what was passed to the
+        # then the notes field is the same as what was passed to the
         # constructor
-        self.assertEqual('notes', post.notes)
+        assert post.notes == 'notes'
 
     def test_init_set_notes_named(self):
         # when a Post is created
         post = plantagenet.Post('title', 'content', datetime(2017, 1, 1),
                                 False, notes='notes')
 
-        # then the is_draft field is the same as what was passed to the
+        # then the notes field is the same as what was passed to the
         # constructor
-        self.assertEqual('notes', post.notes)
+        assert post.notes == 'notes'
 
     def test_init_set_slug_from_simple_title(self):
         # when a Post with a simple title is created
         post = plantagenet.Post('title', 'content', datetime(2017, 1, 1))
 
         # then the post's slug is set
-        self.assertEqual('title', post.slug)
+        assert post.slug == 'title'
 
     def test_init_set_slug_from_title_with_spaces(self):
         # when a Post with a simple title is created
@@ -102,21 +100,21 @@ class PostTest(unittest.TestCase):
 
         # then the post's slug is set, with consecutive spaces replaced by a
         # single hyphen
-        self.assertEqual('title-one', post.slug)
+        assert post.slug == 'title-one'
 
     def test_init_set_slug_from_title_with_leading_spaces(self):
         # when a Post with a simple title is created
         post = plantagenet.Post(' title', 'content', datetime(2017, 1, 1))
 
         # then the post's slug is set, with leading spaces removed
-        self.assertEqual('title', post.slug)
+        assert post.slug == 'title'
 
     def test_init_set_slug_from_title_with_trailing_spaces(self):
         # when a Post with a simple title is created
         post = plantagenet.Post('title ', 'content', datetime(2017, 1, 1))
 
         # then the post's slug is set, with trailing spaces removed
-        self.assertEqual('title', post.slug)
+        assert post.slug == 'title'
 
     def test_init_set_slug_from_title_with_non_word_characters(self):
         # when a Post with a simple title is created
@@ -124,7 +122,7 @@ class PostTest(unittest.TestCase):
                                 datetime(2017, 1, 1))
 
         # then the post's slug is set, with non-word chars removed
-        self.assertEqual('title', post.slug)
+        assert post.slug == 'title'
 
     def test_init_set_slug_from_title_with_upper_case(self):
         # when a Post with a simple title is created
@@ -132,14 +130,14 @@ class PostTest(unittest.TestCase):
                                 datetime(2017, 1, 1))
 
         # then the post's slug is set
-        self.assertEqual('titletitletitle', post.slug)
+        assert post.slug == 'titletitletitle'
 
     def test_init_set_summary_from_content(self):
         # when a Post is created
         post = plantagenet.Post('title', 'content', datetime(2017, 1, 1))
 
         # then the post's summary is set from the content
-        self.assertEqual('content', post.summary)
+        assert post.summary == 'content'
 
     def test_init_set_summary_from_content_truncated(self):
         # when a Post is created from content with length == 100
@@ -148,7 +146,7 @@ class PostTest(unittest.TestCase):
         post = plantagenet.Post('title', content, datetime(2017, 1, 1))
 
         # then the post's summary is set from the content without modification
-        self.assertEqual(content, post.summary)
+        assert post.summary == content
 
         # when a Post is created from content with length > 100
         content2 = '12345678901234567890123456789012345678901234567890' \
@@ -158,41 +156,41 @@ class PostTest(unittest.TestCase):
         post = plantagenet.Post('title', content2, datetime(2017, 1, 1))
 
         # then the post's summary is set from the truncated content
-        self.assertEqual(expected, post.summary)
+        assert post.summary == expected
 
     def test_init_set_last_updated_date(self):
         post = plantagenet.Post('title', 'content', datetime(2017, 1, 1))
 
-        # then the post's summary is set from the content without modification
-        self.assertEqual(datetime(2017, 1, 1), post.last_updated_date)
+        # then the post's last_updated_date is set from the date
+        assert post.last_updated_date == datetime(2017, 1, 1)
 
     def test_summarize_consecutive_spaces_are_condensed(self):
         # when
         result = plantagenet.Post.summarize('one  two')
 
         # then
-        self.assertEqual('one two', result)
+        assert result == 'one two'
 
     def test_summarize_html_tags_are_removed(self):
         # when
         result = plantagenet.Post.summarize('<a href="/">Home</a>')
 
         # then
-        self.assertEqual('Home', result)
+        assert result == 'Home'
 
     def test_summarize_punctuation_has_added_space(self):
         # when
         result = plantagenet.Post.summarize('one,two.three?four!five')
 
         # then
-        self.assertEqual('one, two. three? four! five', result)
+        assert result == 'one, two. three? four! five'
 
     def test_summarize_wordish_chars_are_kept(self):
         # when
         result = plantagenet.Post.summarize('Something,.?!')
 
         # then
-        self.assertEqual('Something, . ? ! ', result)
+        assert result == 'Something, . ? ! '
 
     def test_summarize_non_wordish_chars_are_removed(self):
         # when
@@ -200,7 +198,7 @@ class PostTest(unittest.TestCase):
             'Something :@#$%^&*()[]-_=+[]{}\\|;:\'"/<>')
 
         # then
-        self.assertEqual('Something ', result)
+        assert result == 'Something '
 
     def test_summarize_long_values_are_truncated(self):
         # when a string has length == 100
@@ -209,7 +207,7 @@ class PostTest(unittest.TestCase):
         result = plantagenet.Post.summarize(content)
 
         # then the summarized value is the same
-        self.assertEqual(content, result)
+        assert result == content
 
         # when a string has length > 100
         content2 = '12345678901234567890123456789012345678901234567890' \
@@ -219,7 +217,7 @@ class PostTest(unittest.TestCase):
         result2 = plantagenet.Post.summarize(content2)
 
         # then the summarized value is truncated
-        self.assertEqual(expected2, result2)
+        assert result2 == expected2
 
     def test_summary_is_set_when_content_is_set(self):
         # given
@@ -229,7 +227,7 @@ class PostTest(unittest.TestCase):
         post.content = 'content2'
 
         # then
-        self.assertEqual('content2', post.summary)
+        assert post.summary == 'content2'
 
     def test_content_is_not_None(self):
         # given
@@ -239,8 +237,8 @@ class PostTest(unittest.TestCase):
         post.content = None
 
         # then
-        self.assertEqual('', post.content)
-        self.assertEqual('', post.summary)
+        assert post.content == ''
+        assert post.summary == ''
 
     def test_get_by_slug(self):
         # given
@@ -255,7 +253,7 @@ class PostTest(unittest.TestCase):
         result = plantagenet.Post.get_by_slug('title2')
 
         # then
-        self.assertIs(post2, result)
+        assert result is post2
 
     def test_get_by_slug_missing(self):
         # given
@@ -270,14 +268,14 @@ class PostTest(unittest.TestCase):
         result = plantagenet.Post.get_by_slug('title4')
 
         # then
-        self.assertIsNone(result)
+        assert result is None
 
     def test_get_unique_slug(self):
         # when
         slug = plantagenet.Post.get_unique_slug('title')
 
         # then
-        self.assertEqual('title', slug)
+        assert slug == 'title'
 
     def test_get_unique_slug_not_unique(self):
         # given a post that already exists
@@ -288,18 +286,17 @@ class PostTest(unittest.TestCase):
         slug = plantagenet.Post.get_unique_slug('title')
 
         # then it increments a counter and returns the slightly different value
-        self.assertEqual('title-1', slug)
+        assert slug == 'title-1'
 
 
-class CreateDbTest(unittest.TestCase):
+class TestCreateDb:
     def test_create_db_command(self):
         # given an app with uninitialize database
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
         app.config['TESTING'] = True
-        self.cl = app.test_client()
         app.testing = True
 
-        # precondition: the database table have not been created yet
+        # precondition: the database tables have not been created yet
         with app.app_context():
             def query_post():
                 plantagenet.db.session.execute(
@@ -312,24 +309,31 @@ class CreateDbTest(unittest.TestCase):
             def query_option():
                 plantagenet.db.session.execute(
                     plantagenet.db.select(plantagenet.Option)).first()
-            self.assertRaises(OperationalError, query_post)
-            self.assertRaises(OperationalError, query_tag)
-            self.assertRaises(OperationalError, query_option)
+
+            with pytest.raises(OperationalError):
+                query_post()
+            plantagenet.db.session.rollback()
+            with pytest.raises(OperationalError):
+                query_tag()
+            plantagenet.db.session.rollback()
+            with pytest.raises(OperationalError):
+                query_option()
+            plantagenet.db.session.rollback()
 
         # when the create_db function is called
         plantagenet.cmd_create_db()
 
         # then the database tables are created
         with app.app_context():
-            self.assertIsNone(plantagenet.db.session.execute(
-                plantagenet.db.select(plantagenet.Post)).first())
-            self.assertIsNone(plantagenet.db.session.execute(
-                plantagenet.db.select(plantagenet.Tag)).first())
-            self.assertIsNone(plantagenet.db.session.execute(
-                plantagenet.db.select(plantagenet.Option)).first())
+            assert plantagenet.db.session.execute(
+                plantagenet.db.select(plantagenet.Post)).first() is None
+            assert plantagenet.db.session.execute(
+                plantagenet.db.select(plantagenet.Tag)).first() is None
+            assert plantagenet.db.session.execute(
+                plantagenet.db.select(plantagenet.Option)).first() is None
 
 
-class HashPasswordTest(unittest.TestCase):
+class TestHashPassword:
     def test_hash_password(self):
         # given
         unhashed_password = '12345'
@@ -338,12 +342,12 @@ class HashPasswordTest(unittest.TestCase):
         result = plantagenet.hash_password(unhashed_password)
 
         # then
-        self.assertTrue(
-            plantagenet.bcrypt.check_password_hash(result, unhashed_password))
+        assert plantagenet.bcrypt.check_password_hash(result,
+                                                      unhashed_password)
 
 
-class CliCommandsTest(unittest.TestCase):
-    def setUp(self):
+class TestCliCommands:
+    def setup_method(self):
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
         app.config['TESTING'] = True
         self.cl = app.test_client()
@@ -352,7 +356,7 @@ class CliCommandsTest(unittest.TestCase):
         self.ctx.push()
         app.db.create_all()
 
-    def tearDown(self):
+    def teardown_method(self):
         app.db.session.rollback()
         app.db.drop_all()
         self.ctx.pop()
@@ -365,33 +369,34 @@ class CliCommandsTest(unittest.TestCase):
         app.db.session.commit()
 
         # precondition: the post is in the db
-        self.assertIsNotNone(post.id)
+        assert post.id is not None
         post2 = plantagenet.Post.query.first()
-        self.assertIsNotNone(post2.id)
-        self.assertIs(post2, post)
+        assert post2.id is not None
+        assert post2 is post
 
         # precondition: the post's slug is different from the title
-        self.assertNotEqual('title', post.slug)
+        assert post.slug != 'title'
 
         # when the reset_slug function is called
         plantagenet.reset_slug(post.id)
 
         # then the post's slug is changed to match the title (plus
         # counter, meh)
-        self.assertEqual(post.title, post.slug)
+        assert post.slug == post.title
 
     def test_reset_slug_missing(self):
         # precondition: no posts are in the db
         result = plantagenet.Post.query.first()
-        self.assertIsNone(result)
+        assert result is None
 
         # when the function is called with the id of a nonexistent post,
         # then an exception is thrown
-        self.assertRaises(NotFound, plantagenet.reset_slug, 1)
+        with pytest.raises(NotFound):
+            plantagenet.reset_slug(1)
 
 
-class ListTagsTest(unittest.TestCase):
-    def setUp(self):
+class TestListTags:
+    def setup_method(self):
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
         app.config['TESTING'] = True
         app.testing = True
@@ -400,7 +405,7 @@ class ListTagsTest(unittest.TestCase):
         app.db.create_all()
         self.cl = app.test_client()
 
-    def tearDown(self):
+    def teardown_method(self):
         app.db.session.rollback()
         app.db.drop_all()
         self.ctx.pop()
@@ -410,7 +415,7 @@ class ListTagsTest(unittest.TestCase):
         response = self.cl.get('/tags')
 
         # then
-        self.assertEqual(200, response.status_code)
+        assert response.status_code == 200
 
     def test_list_tags_shows_tag_with_published_post(self):
         # given a tag with one published post
@@ -424,7 +429,7 @@ class ListTagsTest(unittest.TestCase):
         response = self.cl.get('/tags')
 
         # then the tag is visible
-        self.assertIn(b'mytag', response.data)
+        assert b'mytag' in response.data
 
     def test_list_tags_hides_tag_with_only_draft_posts(self):
         # given a tag whose only post is a draft
@@ -439,7 +444,7 @@ class ListTagsTest(unittest.TestCase):
         response = self.cl.get('/tags')
 
         # then the tag is not visible
-        self.assertNotIn(b'drafttag', response.data)
+        assert b'drafttag' not in response.data
 
     def test_list_tags_authenticated_shows_tag_with_only_draft_posts(self):
         # given a tag whose only post is a draft
@@ -457,11 +462,11 @@ class ListTagsTest(unittest.TestCase):
         response = self.cl.get('/tags')
 
         # then the tag is visible
-        self.assertIn(b'drafttag', response.data)
+        assert b'drafttag' in response.data
 
 
-class ListPagesTest(unittest.TestCase):
-    def setUp(self):
+class TestListPages:
+    def setup_method(self):
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
         app.config['TESTING'] = True
         app.testing = True
@@ -470,14 +475,14 @@ class ListPagesTest(unittest.TestCase):
         app.db.create_all()
         self.cl = app.test_client()
 
-    def tearDown(self):
+    def teardown_method(self):
         app.db.session.rollback()
         app.db.drop_all()
         self.ctx.pop()
 
     def test_list_pages_returns_200(self):
         response = self.cl.get('/page')
-        self.assertEqual(200, response.status_code)
+        assert response.status_code == 200
 
     def test_list_pages_shows_published_page(self):
         page = plantagenet.Page('My Page', 'content', datetime(2024, 1, 1))
@@ -485,7 +490,7 @@ class ListPagesTest(unittest.TestCase):
         app.db.session.commit()
 
         response = self.cl.get('/page')
-        self.assertIn(b'My Page', response.data)
+        assert b'My Page' in response.data
 
     def test_list_pages_hides_draft_from_unauthenticated(self):
         page = plantagenet.Page('Secret Page', 'content', datetime(2024, 1, 1),
@@ -494,7 +499,7 @@ class ListPagesTest(unittest.TestCase):
         app.db.session.commit()
 
         response = self.cl.get('/page')
-        self.assertNotIn(b'Secret Page', response.data)
+        assert b'Secret Page' not in response.data
 
     def test_list_pages_shows_draft_to_authenticated(self):
         page = plantagenet.Page('Secret Page', 'content', datetime(2024, 1, 1),
@@ -506,11 +511,11 @@ class ListPagesTest(unittest.TestCase):
             sess['_user_id'] = 'admin'
             sess['_fresh'] = True
         response = self.cl.get('/page')
-        self.assertIn(b'Secret Page', response.data)
+        assert b'Secret Page' in response.data
 
 
-class ViewPageTest(unittest.TestCase):
-    def setUp(self):
+class TestViewPage:
+    def setup_method(self):
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
         app.config['TESTING'] = True
         app.testing = True
@@ -519,7 +524,7 @@ class ViewPageTest(unittest.TestCase):
         app.db.create_all()
         self.cl = app.test_client()
 
-    def tearDown(self):
+    def teardown_method(self):
         app.db.session.rollback()
         app.db.drop_all()
         self.ctx.pop()
@@ -530,7 +535,7 @@ class ViewPageTest(unittest.TestCase):
         app.db.session.commit()
 
         response = self.cl.get('/page/{}'.format(page.slug))
-        self.assertEqual(200, response.status_code)
+        assert response.status_code == 200
 
     def test_view_page_shows_content(self):
         page = plantagenet.Page('My Page', 'Hello World', datetime(2024, 1, 1))
@@ -538,11 +543,11 @@ class ViewPageTest(unittest.TestCase):
         app.db.session.commit()
 
         response = self.cl.get('/page/{}'.format(page.slug))
-        self.assertIn(b'Hello World', response.data)
+        assert b'Hello World' in response.data
 
     def test_view_page_missing_returns_404(self):
         response = self.cl.get('/page/no-such-page')
-        self.assertEqual(404, response.status_code)
+        assert response.status_code == 404
 
     def test_view_draft_page_unauthenticated_returns_401(self):
         page = plantagenet.Page('Draft', 'content', datetime(2024, 1, 1),
@@ -551,7 +556,7 @@ class ViewPageTest(unittest.TestCase):
         app.db.session.commit()
 
         response = self.cl.get('/page/{}'.format(page.slug))
-        self.assertEqual(401, response.status_code)
+        assert response.status_code == 401
 
     def test_view_draft_page_authenticated_returns_200(self):
         page = plantagenet.Page('Draft', 'content', datetime(2024, 1, 1),
@@ -563,11 +568,11 @@ class ViewPageTest(unittest.TestCase):
             sess['_user_id'] = 'admin'
             sess['_fresh'] = True
         response = self.cl.get('/page/{}'.format(page.slug))
-        self.assertEqual(200, response.status_code)
+        assert response.status_code == 200
 
 
-class PagePublishedDateTest(unittest.TestCase):
-    def setUp(self):
+class TestPagePublishedDate:
+    def setup_method(self):
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
         app.config['TESTING'] = True
         app.testing = True
@@ -576,7 +581,7 @@ class PagePublishedDateTest(unittest.TestCase):
         app.db.create_all()
         self.cl = app.test_client()
 
-    def tearDown(self):
+    def teardown_method(self):
         app.db.session.rollback()
         app.db.drop_all()
         self.ctx.pop()
@@ -589,7 +594,7 @@ class PagePublishedDateTest(unittest.TestCase):
     def test_published_date_none_for_draft(self):
         page = plantagenet.Page('My Page', 'content', datetime(2024, 1, 1),
                                 is_draft=True)
-        self.assertIsNone(page.published_date)
+        assert page.published_date is None
 
     def test_published_date_set_on_create_when_not_draft(self):
         self._login()
@@ -600,7 +605,7 @@ class PagePublishedDateTest(unittest.TestCase):
         })
         page = app.db.session.execute(
             plantagenet.db.select(plantagenet.Page)).scalar()
-        self.assertIsNotNone(page.published_date)
+        assert page.published_date is not None
 
     def test_published_date_not_set_on_create_when_draft(self):
         self._login()
@@ -612,14 +617,14 @@ class PagePublishedDateTest(unittest.TestCase):
         })
         page = app.db.session.execute(
             plantagenet.db.select(plantagenet.Page)).scalar()
-        self.assertIsNone(page.published_date)
+        assert page.published_date is None
 
     def test_published_date_set_when_draft_is_published(self):
         page = plantagenet.Page('My Page', 'content', datetime(2024, 1, 1),
                                 is_draft=True)
         app.db.session.add(page)
         app.db.session.commit()
-        self.assertIsNone(page.published_date)
+        assert page.published_date is None
 
         self._login()
         self.cl.post('/page/{}/edit'.format(page.slug), data={
@@ -628,7 +633,7 @@ class PagePublishedDateTest(unittest.TestCase):
             'notes': '',
         })
         app.db.session.refresh(page)
-        self.assertIsNotNone(page.published_date)
+        assert page.published_date is not None
 
     def test_published_date_not_overwritten_on_re_save(self):
         original_date = datetime(2020, 6, 15)
@@ -644,31 +649,11 @@ class PagePublishedDateTest(unittest.TestCase):
             'notes': '',
         })
         app.db.session.refresh(page)
-        self.assertEqual(original_date, page.published_date)
+        assert page.published_date == original_date
 
 
-class VersionTest(unittest.TestCase):
+class TestVersion:
     def test_version_number_is_correct(self):
         from plantagenet import Options
         # expect
-        self.assertEqual('unknown', Options.get_version())
-
-
-def run():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--print-log', action='store_true',
-                        help='Print the log.')
-    args = parser.parse_args()
-
-    if args.print_log:
-        logging.basicConfig(level=logging.DEBUG,
-                            format=('%(asctime)s %(levelname)s:%(name)s:'
-                                    '%(funcName)s:'
-                                    '%(filename)s(%(lineno)d):'
-                                    '%(threadName)s(%(thread)d):%(message)s'))
-
-    unittest.main(argv=[''])
-
-
-if __name__ == '__main__':
-    run()
+        assert Options.get_version() == 'unknown'
