@@ -58,7 +58,10 @@ from werkzeug.exceptions import Unauthorized
 
 __version__ = '1.0'
 try:
-    __revision__ = git.Repo('.').head.commit.hexsha
+    _repo = git.Repo('.')
+    __revision__ = _repo.head.commit.hexsha
+    if _repo.is_dirty():
+        __revision__ += '-dirty'
 except git.InvalidGitRepositoryError:
     __revision__ = environ.get('PLANTAGENET_REVISION', 'unknown')
 
