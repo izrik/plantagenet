@@ -1,8 +1,8 @@
 #!/bin/bash
 
-coverage run --source=plantagenet -m pytest tests/ test_extern.py "$@" && \
+coverage run --source=plantagenet -m pytest tests/ "$@" && \
     coverage html && \
-    flake8 plantagenet.py tests/ test_extern.py && \
+    flake8 plantagenet.py tests/ && \
     bandit plantagenet.py && \
     shellcheck run_tests_with_coverage.sh && \
     pymarkdown scan README.md && \
