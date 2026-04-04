@@ -4,23 +4,27 @@ RUN mkdir -p /opt/plantagenet
 
 WORKDIR /opt/plantagenet
 
+RUN apk add --virtual .build-deps gcc musl-dev libffi-dev postgresql-dev g++ && \
+    apk add libpq git bash && \
+    pip install gunicorn==23.0.0 \
+                psycopg2==2.9.10 && \
+    apk --purge del .build-deps
+
+COPY requirements.txt ./
+
+RUN apk add --virtual .build-deps gcc musl-dev libffi-dev postgresql-dev g++ && \
+    pip install -r requirements.txt && \
+    apk --purge del .build-deps
+
 COPY plantagenet.py \
      LICENSE \
      README.md \
-     requirements.txt \
      docker_start.sh \
      ./
 
 COPY static static
 COPY templates templates
 COPY migrations migrations
-
-RUN apk add --virtual .build-deps gcc musl-dev libffi-dev postgresql-dev g++ && \
-    apk add libpq git bash && \
-    pip install -r requirements.txt \
-                gunicorn==23.0.0 \
-                psycopg2==2.9.10 && \
-    apk --purge del .build-deps
 
 EXPOSE 8080
 ENV PLANTAGENET_PORT=8080 \
