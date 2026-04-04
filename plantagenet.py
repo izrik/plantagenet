@@ -277,6 +277,35 @@ class Post(db.Model):
         if not title or not slugify(title).strip():
             raise BadRequest("The post's title is invalid.")
 
+    @staticmethod
+    def tags_from_string(tag_string):
+        tag_names = set(
+            name for name in (
+                name.strip() for name in tag_string.split(',') if name)
+            if name)
+        tags = set()
+        for name in tag_names:
+            tag = db.session.execute(
+                db.select(Tag).filter_by(name=name)).scalar()
+            if tag is None:
+                tag = Tag(name)
+            tags.add(tag)
+        return tags
+
+    def get_next(self, include_drafts=True):
+        stmt = db.select(Post).where(Post.date > self.date)
+        if not include_drafts:
+            stmt = stmt.filter_by(is_draft=False)
+        return db.session.execute(
+            stmt.order_by(Post.date.asc()).limit(1)).scalar()
+
+    def get_prev(self, include_drafts=True):
+        stmt = db.select(Post).where(Post.date < self.date)
+        if not include_drafts:
+            stmt = stmt.filter_by(is_draft=False)
+        return db.session.execute(
+            stmt.order_by(Post.date.desc()).limit(1)).scalar()
+
     @property
     def title(self):
         return self._title
@@ -481,22 +510,9 @@ def get_post(slug):
         raise Unauthorized()
     user = current_user
 
-    if current_user.is_authenticated:
-        next_post = db.session.execute(
-            db.select(Post).where(Post.date > post.date)
-            .order_by(Post.date.asc()).limit(1)).scalar()
-        prev_post = db.session.execute(
-            db.select(Post).where(Post.date < post.date)
-            .order_by(Post.date.desc()).limit(1)).scalar()
-    else:
-        next_post = db.session.execute(
-            db.select(Post).filter_by(is_draft=False)
-            .where(Post.date > post.date)
-            .order_by(Post.date.asc()).limit(1)).scalar()
-        prev_post = db.session.execute(
-            db.select(Post).filter_by(is_draft=False)
-            .where(Post.date < post.date)
-            .order_by(Post.date.desc()).limit(1)).scalar()
+    include_drafts = current_user.is_authenticated
+    next_post = post.get_next(include_drafts=include_drafts)
+    prev_post = post.get_prev(include_drafts=include_drafts)
 
     return render_template('post.html', config=Config, post=post, user=user,
                            next_post=next_post, prev_post=prev_post)
@@ -526,17 +542,7 @@ def edit_post(slug):
     post.last_updated_date = datetime.now()
 
     current_tags = set(post.tags)
-    next_tag_names = set(
-        name for name in (
-            name.strip() for name in tags.split(',') if name)
-        if name)
-    next_tags = set()
-    for name in next_tag_names:
-        tag = db.session.execute(
-            db.select(Tag).filter_by(name=name)).scalar()
-        if tag is None:
-            tag = Tag(name)
-        next_tags.add(tag)
+    next_tags = Post.tags_from_string(tags)
     tags_to_add = next_tags.difference(current_tags)
     tags_to_remove = current_tags.difference(next_tags)
 
@@ -567,20 +573,7 @@ def create_new():
     tags = request.form['tags']
 
     post = Post(title, content, datetime.now(), is_draft, notes)
-
-    next_tag_names = set(
-        name for name in (
-            name.strip() for name in tags.split(',') if name)
-        if name)
-    next_tags = set()
-    for name in next_tag_names:
-        tag = db.session.execute(
-            db.select(Tag).filter_by(name=name)).scalar()
-        if tag is None:
-            tag = Tag(name)
-        next_tags.add(tag)
-    tags_to_add = next_tags
-    post.tags.extend(tags_to_add)
+    post.tags.extend(Post.tags_from_string(tags))
 
     db.session.add(post)
     db.session.commit()
