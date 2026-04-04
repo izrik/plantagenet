@@ -56,7 +56,11 @@ from werkzeug.exceptions import NotFound
 from werkzeug.exceptions import ServiceUnavailable
 from werkzeug.exceptions import Unauthorized
 
-__version__ = '1.0'
+try:
+    from __version__ import __version__
+except ImportError:
+    __version__ = 'unknown'
+
 try:
     _repo = git.Repo('.')
     __revision__ = _repo.head.commit.hexsha
