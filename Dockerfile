@@ -4,6 +4,10 @@ RUN mkdir -p /opt/plantagenet
 
 WORKDIR /opt/plantagenet
 
+EXPOSE 8080
+ENV PLANTAGENET_PORT=8080 \
+    PLANTAGENET_HOST=0.0.0.0
+
 RUN apk add --virtual .build-deps gcc musl-dev libffi-dev postgresql-dev g++ && \
     apk add libpq git bash && \
     pip install gunicorn==23.0.0 \
@@ -25,10 +29,6 @@ COPY plantagenet.py \
 COPY static static
 COPY templates templates
 COPY migrations migrations
-
-EXPOSE 8080
-ENV PLANTAGENET_PORT=8080 \
-    PLANTAGENET_HOST=0.0.0.0
 
 ARG VERSION=unknown
 ARG REVISION=unknown
