@@ -1,16 +1,5 @@
 FROM python:3.12-alpine
 
-ARG REVISION=unknown
-
-ENV PLANTAGENET_VERSION=1.0
-ENV PLANTAGENET_REVISION=$REVISION
-LABEL \
-    Name="plantagenet" \
-    Version="$PLANTAGENET_VERSION" \
-    Summary="A Python blogging system." \
-    Description="A Python blogging system." \
-    maintaner="izrik <izrik@izrik.com>"
-
 RUN mkdir -p /opt/plantagenet
 
 WORKDIR /opt/plantagenet
@@ -21,9 +10,10 @@ COPY plantagenet.py \
      requirements.txt \
      docker_start.sh \
      ./
- 
+
 COPY static static
 COPY templates templates
+COPY migrations migrations
 
 RUN apk add --virtual .build-deps gcc musl-dev libffi-dev postgresql-dev g++ && \
     apk add libpq git bash && \
@@ -35,5 +25,19 @@ RUN apk add --virtual .build-deps gcc musl-dev libffi-dev postgresql-dev g++ && 
 EXPOSE 8080
 ENV PLANTAGENET_PORT=8080 \
     PLANTAGENET_HOST=0.0.0.0
+
+ARG VERSION=1.0
+ARG REVISION=unknown
+
+RUN echo "__version__ = '$VERSION'" > __version__.py
+
+ENV PLANTAGENET_REVISION=$REVISION
+
+LABEL \
+    Name="plantagenet" \
+    Version="$VERSION" \
+    Summary="A Python blogging system." \
+    Description="A Python blogging system." \
+    maintaner="izrik <izrik@izrik.com>"
 
 CMD ["/opt/plantagenet/docker_start.sh"]
