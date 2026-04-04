@@ -176,44 +176,10 @@ if __name__ == "__main__":
     Config.EXTRA_LINKS = args.extra_links
 
 
-app = Flask(__name__)
-
-extra_loaders = []
-if Config.CUSTOM_TEMPLATES:
-    extra_loaders.append(jinja2.FileSystemLoader(Config.CUSTOM_TEMPLATES))
-if Config.EXTERN_ROOT:
-    extra_loaders.append(jinja2.FileSystemLoader(Config.EXTERN_ROOT))
-if extra_loaders:
-    extra_loaders.append(app.jinja_loader)
-    app.jinja_loader = jinja2.ChoiceLoader(extra_loaders)
-
-app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.config["SECRET_KEY"] = Config.SECRET_KEY  # for WTF-forms and login
-
-db_uri = 'sqlite://'
-if Config.DB_URI:
-    db_uri = Config.DB_URI
-elif Config.DB_URI_FILE:
-    try:
-        with open(Config.DB_URI_FILE) as f:
-            db_uri = f.read().strip()
-    except FileNotFoundError:
-        raise ConfigError(
-            f'Could not find uri file "{Config.DB_URI_FILE}".')
-    except PermissionError:
-        raise ConfigError(
-            f'Permission error when opening uri file '
-            f'"{Config.DB_URI_FILE}".')
-    except Exception as e:
-        raise ConfigError(
-            f'Error opening uri file "{Config.DB_URI_FILE}": {e}')
-app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
-
-# extensions
-login_manager = LoginManager(app)
-db = SQLAlchemy(app)
-app.db = db
-bcrypt = Bcrypt(app)
+# extensions (unbound; initialized per-app in create_app)
+login_manager = LoginManager()
+db = SQLAlchemy()
+bcrypt = Bcrypt()
 
 
 # user class for providing authentication
@@ -453,12 +419,10 @@ def load_user(user_id):
     return User(Options.get_author(), Options.get_author())
 
 
-@app.context_processor
 def setup_options():
     return {'Options': Options}
 
 
-@app.template_filter(name='gfm')
 def render_gfm(s):
     from mdx_gfm import GithubFlavoredMarkdownExtension
     output = markdown.markdown(
@@ -467,7 +431,6 @@ def render_gfm(s):
     return moutput
 
 
-@app.route("/")
 def index():
     stmt = db.select(Post)
     if not current_user.is_authenticated:
@@ -477,7 +440,6 @@ def index():
     return render_template("index.html", pager=pager)
 
 
-@app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
         return render_template('login.html')
@@ -500,7 +462,6 @@ def login():
     return redirect(url_for('index'))
 
 
-@app.route('/post/<slug>', methods=['GET'])
 def get_post(slug):
 
     post = Post.get_by_slug(slug)
@@ -531,7 +492,6 @@ def get_post(slug):
                            next_post=next_post, prev_post=prev_post)
 
 
-@app.route('/edit/<slug>', methods=['GET', 'POST'])
 @login_required
 def edit_post(slug):
     post = Post.get_by_slug(slug)
@@ -582,7 +542,6 @@ def edit_post(slug):
     return redirect(url_for('get_post', slug=post.slug))
 
 
-@app.route('/new', methods=['GET', 'POST'])
 @login_required
 def create_new():
     if request.method == 'GET':
@@ -620,7 +579,6 @@ def create_new():
     return redirect(url_for('get_post', slug=post.slug))
 
 
-@app.route('/tags', methods=['GET'])
 def list_tags():
     tags = db.session.execute(db.select(Tag)).scalars()
     if current_user.is_authenticated:
@@ -640,7 +598,6 @@ def list_tags():
     return render_template('list_tags.html', tag_counts=tag_counts)
 
 
-@app.route('/tags/<tag_id>', methods=['GET'])
 def get_tag(tag_id):
     tag = db.session.get(Tag, tag_id)
     stmt = db.select(Post).join(Post.tags).where(Tag.id == tag_id)
@@ -650,7 +607,6 @@ def get_tag(tag_id):
     return render_template("tag.html", tag=tag, posts=posts)
 
 
-@app.route('/page', methods=['GET'])
 def list_pages():
     stmt = db.select(Page)
     if not current_user.is_authenticated:
@@ -660,7 +616,6 @@ def list_pages():
     return render_template('list_pages.html', pages=pages)
 
 
-@app.route('/page/<slug>', methods=['GET'])
 def view_page(slug):
     page = Page.get_by_slug(slug)
     if not page:
@@ -670,7 +625,6 @@ def view_page(slug):
     return render_template('page.html', page=page)
 
 
-@app.route('/page/<slug>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_page(slug):
     page = Page.get_by_slug(slug)
@@ -701,7 +655,6 @@ def edit_page(slug):
     return redirect(url_for('view_page', slug=page.slug))
 
 
-@app.route('/new-page', methods=['GET', 'POST'])
 @login_required
 def create_new_page():
     if request.method == 'GET':
@@ -726,13 +679,11 @@ def create_new_page():
     return redirect(url_for('view_page', slug=page.slug))
 
 
-@app.route("/logout")
 def logout():
     logout_user()
     return redirect("/")
 
 
-@app.route('/pages/<path:filename>')
 def get_page(filename):
     if not Config.EXTERN_ROOT:
         raise NotFound()
@@ -850,7 +801,7 @@ def run():
     if Config.DEBUG:
         print('DB URI: {}'.format(Config.DB_URI))
         print('DB URI File: {}'.format(Config.DB_URI_FILE))
-        print(f"Effective DB URI: {db_uri}")
+        print(f"Effective DB URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
         print('Secret Key: {}'.format(Config.SECRET_KEY))
     print('Local Resources: {}'.format(Config.LOCAL_RESOURCES))
 
@@ -930,6 +881,73 @@ def run():
         app.run(debug=Config.DEBUG, host=Config.HOST, port=Config.PORT,
                 use_reloader=Config.DEBUG)
 
+
+def create_app(config=None):
+    app = Flask(__name__)
+
+    extra_loaders = []
+    if Config.CUSTOM_TEMPLATES:
+        extra_loaders.append(jinja2.FileSystemLoader(Config.CUSTOM_TEMPLATES))
+    if Config.EXTERN_ROOT:
+        extra_loaders.append(jinja2.FileSystemLoader(Config.EXTERN_ROOT))
+    if extra_loaders:
+        extra_loaders.append(app.jinja_loader)
+        app.jinja_loader = jinja2.ChoiceLoader(extra_loaders)
+
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.config['SECRET_KEY'] = Config.SECRET_KEY  # for WTF-forms and login
+
+    db_uri = 'sqlite://'
+    if Config.DB_URI:
+        db_uri = Config.DB_URI
+    elif Config.DB_URI_FILE:
+        try:
+            with open(Config.DB_URI_FILE) as f:
+                db_uri = f.read().strip()
+        except FileNotFoundError:
+            raise ConfigError(
+                f'Could not find uri file "{Config.DB_URI_FILE}".')
+        except PermissionError:
+            raise ConfigError(
+                f'Permission error when opening uri file '
+                f'"{Config.DB_URI_FILE}".')
+        except Exception as e:
+            raise ConfigError(
+                f'Error opening uri file "{Config.DB_URI_FILE}": {e}')
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
+
+    if config:
+        app.config.update(config)
+
+    login_manager.init_app(app)
+    db.init_app(app)
+    app.db = db
+    bcrypt.init_app(app)
+
+    app.context_processor(setup_options)
+    app.add_template_filter(render_gfm, name='gfm')
+
+    app.add_url_rule('/', 'index', index)
+    app.add_url_rule('/login', 'login', login, methods=['GET', 'POST'])
+    app.add_url_rule('/post/<slug>', 'get_post', get_post)
+    app.add_url_rule('/edit/<slug>', 'edit_post', edit_post,
+                     methods=['GET', 'POST'])
+    app.add_url_rule('/new', 'create_new', create_new, methods=['GET', 'POST'])
+    app.add_url_rule('/tags', 'list_tags', list_tags)
+    app.add_url_rule('/tags/<tag_id>', 'get_tag', get_tag)
+    app.add_url_rule('/page', 'list_pages', list_pages)
+    app.add_url_rule('/page/<slug>', 'view_page', view_page)
+    app.add_url_rule('/page/<slug>/edit', 'edit_page', edit_page,
+                     methods=['GET', 'POST'])
+    app.add_url_rule('/new-page', 'create_new_page', create_new_page,
+                     methods=['GET', 'POST'])
+    app.add_url_rule('/logout', 'logout', logout)
+    app.add_url_rule('/pages/<path:filename>', 'get_page', get_page)
+
+    return app
+
+
+app = create_app()
 
 with app.app_context():
     run_migrations(db.engine)

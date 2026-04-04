@@ -1,25 +1,26 @@
 import pytest
 
-from plantagenet import app
+from plantagenet import create_app, db
 
 
 @pytest.fixture
 def ctx():
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
-    app.config['TESTING'] = True
-    app.testing = True
-    c = app.app_context()
+    test_app = create_app({
+        'SQLALCHEMY_DATABASE_URI': 'sqlite://',
+        'TESTING': True,
+    })
+    c = test_app.app_context()
     c.push()
-    app.db.create_all()
-    yield
-    app.db.session.rollback()
-    app.db.drop_all()
+    db.create_all()
+    yield test_app
+    db.session.rollback()
+    db.drop_all()
     c.pop()
 
 
 @pytest.fixture
 def cl(ctx):
-    return app.test_client()
+    return ctx.test_client()
 
 
 @pytest.fixture
