@@ -26,7 +26,7 @@ EXPOSE 8080
 ENV PLANTAGENET_PORT=8080 \
     PLANTAGENET_HOST=0.0.0.0
 
-ARG VERSION=1.0
+ARG VERSION=unknown
 ARG REVISION=unknown
 
 RUN echo "__version__ = '$VERSION'" > __version__.py
