@@ -1,6 +1,36 @@
 from datetime import datetime
 
+import pytest
+
 import plantagenet
+
+
+def test_post_validate_title_valid(ctx):
+    plantagenet.Post.validate_title('Hello World')
+
+
+def test_post_validate_title_empty_raises(ctx):
+    with pytest.raises(Exception):
+        plantagenet.Post.validate_title('')
+
+
+def test_post_validate_title_whitespace_only_raises(ctx):
+    with pytest.raises(Exception):
+        plantagenet.Post.validate_title('   ')
+
+
+def test_page_validate_title_valid(ctx):
+    plantagenet.Page.validate_title('Hello World')
+
+
+def test_page_validate_title_empty_raises(ctx):
+    with pytest.raises(Exception):
+        plantagenet.Page.validate_title('')
+
+
+def test_page_validate_title_whitespace_only_raises(ctx):
+    with pytest.raises(Exception):
+        plantagenet.Page.validate_title('   ')
 
 
 def test_user_get_name(ctx):

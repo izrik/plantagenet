@@ -272,6 +272,11 @@ class Post(db.Model):
                 i += 1
         return slug
 
+    @staticmethod
+    def validate_title(title):
+        if not title or not slugify(title).strip():
+            raise BadRequest("The post's title is invalid.")
+
     @property
     def title(self):
         return self._title
@@ -340,6 +345,11 @@ class Page(db.Model):
                 slug = slugify('{} {}'.format(title, i))
                 i += 1
         return slug
+
+    @staticmethod
+    def validate_title(title):
+        if not title or not slugify(title).strip():
+            raise BadRequest("The page's title is invalid.")
 
     @property
     def title(self):
@@ -502,8 +512,7 @@ def edit_post(slug):
                                post_url=url_for('edit_post', slug=post.slug))
 
     title = request.form['title'].strip()
-    if not title or not slugify(title).strip():
-        raise BadRequest("The post's title is invalid.")
+    Post.validate_title(title)
     content = request.form['content']
     notes = request.form['notes']
     is_draft = not (not ('is_draft' in request.form and
@@ -550,8 +559,7 @@ def create_new():
                                post_url=url_for('create_new'))
 
     title = request.form['title'].strip()
-    if not title or not slugify(title).strip():
-        raise BadRequest("The post's title is invalid.")
+    Post.validate_title(title)
     content = request.form['content']
     notes = request.form['notes']
     is_draft = not (not ('is_draft' in request.form and
@@ -635,8 +643,7 @@ def edit_page(slug):
                                page_url=url_for('edit_page', slug=page.slug))
 
     title = request.form['title'].strip()
-    if not title or not slugify(title).strip():
-        raise BadRequest("The page's title is invalid.")
+    Page.validate_title(title)
     content = request.form['content']
     notes = request.form['notes']
     is_draft = not (not ('is_draft' in request.form and
@@ -663,8 +670,7 @@ def create_new_page():
                                page_url=url_for('create_new_page'))
 
     title = request.form['title'].strip()
-    if not title or not slugify(title).strip():
-        raise BadRequest("The page's title is invalid.")
+    Page.validate_title(title)
     content = request.form['content']
     notes = request.form['notes']
     is_draft = not (not ('is_draft' in request.form and
