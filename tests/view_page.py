@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import pytest
 import plantagenet
 from plantagenet import app
 
@@ -27,22 +28,17 @@ def test_view_page_missing_returns_404(cl):
     assert response.status_code == 404
 
 
-def test_view_draft_page_unauthenticated_returns_401(cl):
+@pytest.mark.parametrize('authenticated,expected_status', [
+    (False, 401),
+    (True, 200),
+])
+def test_view_draft_page_access(cl, login, authenticated, expected_status):
     page = plantagenet.Page('Draft', 'content', datetime(2024, 1, 1),
                             is_draft=True)
     app.db.session.add(page)
     app.db.session.commit()
 
+    if authenticated:
+        login()
     response = cl.get('/page/{}'.format(page.slug))
-    assert response.status_code == 401
-
-
-def test_view_draft_page_authenticated_returns_200(cl, login):
-    page = plantagenet.Page('Draft', 'content', datetime(2024, 1, 1),
-                            is_draft=True)
-    app.db.session.add(page)
-    app.db.session.commit()
-
-    login()
-    response = cl.get('/page/{}'.format(page.slug))
-    assert response.status_code == 200
+    assert response.status_code == expected_status

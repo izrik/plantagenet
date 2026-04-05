@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import pytest
 import plantagenet
 from plantagenet import app
 
@@ -18,22 +19,17 @@ def test_index_shows_published_post(cl):
     assert b'Published' in response.data
 
 
-def test_index_hides_draft_from_unauthenticated(cl):
+@pytest.mark.parametrize('authenticated,visible', [
+    (False, False),
+    (True, True),
+])
+def test_index_draft_visibility(cl, login, authenticated, visible):
     post = plantagenet.Post('Secret', 'content', datetime(2024, 1, 1),
                             is_draft=True)
     app.db.session.add(post)
     app.db.session.commit()
 
+    if authenticated:
+        login()
     response = cl.get('/')
-    assert b'Secret' not in response.data
-
-
-def test_index_shows_draft_to_authenticated(cl, login):
-    post = plantagenet.Post('Secret', 'content', datetime(2024, 1, 1),
-                            is_draft=True)
-    app.db.session.add(post)
-    app.db.session.commit()
-
-    login()
-    response = cl.get('/')
-    assert b'Secret' in response.data
+    assert (b'Secret' in response.data) == visible
