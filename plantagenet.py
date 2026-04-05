@@ -306,6 +306,20 @@ class Post(db.Model):
         return db.session.execute(
             stmt.order_by(Post.date.desc()).limit(1)).scalar()
 
+    @classmethod
+    def list_paginated(cls, include_drafts=False):
+        stmt = db.select(Post)
+        if not include_drafts:
+            stmt = stmt.filter_by(is_draft=False)
+        stmt = stmt.order_by(Post.date.desc())
+        return db.paginate(stmt)
+
+    def save(self):
+        for tag in self.tags:
+            db.session.add(tag)
+        db.session.add(self)
+        db.session.commit()
+
     @property
     def title(self):
         return self._title
@@ -323,6 +337,27 @@ class Tag(db.Model):
 
     def __init__(self, name):
         self.name = name
+
+    @classmethod
+    def list(cls):
+        return db.session.execute(db.select(Tag)).scalars()
+
+    @classmethod
+    def get(cls, tag_id):
+        return db.session.get(Tag, tag_id)
+
+    def post_count(self, include_drafts=False):
+        stmt = (db.select(db.func.count()).select_from(Post)
+                .join(Post.tags).where(Tag.id == self.id))
+        if not include_drafts:
+            stmt = stmt.where(Post.is_draft == False)  # noqa: E712
+        return db.session.execute(stmt).scalar()
+
+    def get_posts(self, include_drafts=False):
+        stmt = db.select(Post).join(Post.tags).where(Tag.id == self.id)
+        if not include_drafts:
+            stmt = stmt.where(Post.is_draft == False)  # noqa: E712
+        return db.session.execute(stmt).scalars()
 
 
 class Page(db.Model):
@@ -379,6 +414,18 @@ class Page(db.Model):
     def validate_title(title):
         if not title or not slugify(title).strip():
             raise BadRequest("The page's title is invalid.")
+
+    @classmethod
+    def list(cls, include_drafts=False):
+        stmt = db.select(Page)
+        if not include_drafts:
+            stmt = stmt.filter_by(is_draft=False)
+        stmt = stmt.order_by(Page._title.asc())
+        return db.session.execute(stmt).scalars()
+
+    def save(self):
+        db.session.add(self)
+        db.session.commit()
 
     @property
     def title(self):
@@ -471,11 +518,7 @@ def render_gfm(s):
 
 
 def index():
-    stmt = db.select(Post)
-    if not current_user.is_authenticated:
-        stmt = stmt.filter_by(is_draft=False)
-    stmt = stmt.order_by(Post.date.desc())
-    pager = db.paginate(stmt)
+    pager = Post.list_paginated(include_drafts=current_user.is_authenticated)
     return render_template("index.html", pager=pager)
 
 
@@ -483,10 +526,7 @@ def login():
     if request.method == 'GET':
         return render_template('login.html')
 
-    nvp = db.session.get(Option, 'hashed_password')
-    if not nvp:
-        raise ServiceUnavailable('No password set')
-    stored_password = nvp.value
+    stored_password = Options.get('hashed_password')
     if not stored_password:
         raise ServiceUnavailable('No password set')
     password = request.form['password']
@@ -550,10 +590,7 @@ def edit_post(slug):
         post.tags.remove(ttr)
     post.tags.extend(tags_to_add)
 
-    for tta in tags_to_add:
-        db.session.add(tta)
-    db.session.add(post)
-    db.session.commit()
+    post.save()
     return redirect(url_for('get_post', slug=post.slug))
 
 
@@ -575,45 +612,26 @@ def create_new():
     post = Post(title, content, datetime.now(), is_draft, notes)
     post.tags.extend(Post.tags_from_string(tags))
 
-    db.session.add(post)
-    db.session.commit()
+    post.save()
     return redirect(url_for('get_post', slug=post.slug))
 
 
 def list_tags():
-    tags = db.session.execute(db.select(Tag)).scalars()
-    if current_user.is_authenticated:
-        def post_count(tag):
-            return db.session.execute(
-                db.select(db.func.count()).select_from(Post)
-                .join(Post.tags).where(Tag.id == tag.id)
-            ).scalar()
-    else:
-        def post_count(tag):
-            return db.session.execute(
-                db.select(db.func.count()).select_from(Post)
-                .join(Post.tags).where(Tag.id == tag.id)
-                .where(Post.is_draft == False)  # noqa: E712
-            ).scalar()
-    tag_counts = [(tag, post_count(tag)) for tag in tags]
+    tags = Tag.list()
+    include_drafts = current_user.is_authenticated
+    tag_counts = [(tag, tag.post_count(include_drafts=include_drafts))
+                  for tag in tags]
     return render_template('list_tags.html', tag_counts=tag_counts)
 
 
 def get_tag(tag_id):
-    tag = db.session.get(Tag, tag_id)
-    stmt = db.select(Post).join(Post.tags).where(Tag.id == tag_id)
-    if not current_user.is_authenticated:
-        stmt = stmt.where(Post.is_draft == False)  # noqa: E712
-    posts = db.session.execute(stmt).scalars()
+    tag = Tag.get(tag_id)
+    posts = tag.get_posts(include_drafts=current_user.is_authenticated)
     return render_template("tag.html", tag=tag, posts=posts)
 
 
 def list_pages():
-    stmt = db.select(Page)
-    if not current_user.is_authenticated:
-        stmt = stmt.filter_by(is_draft=False)
-    stmt = stmt.order_by(Page._title.asc())
-    pages = db.session.execute(stmt).scalars()
+    pages = Page.list(include_drafts=current_user.is_authenticated)
     return render_template('list_pages.html', pages=pages)
 
 
@@ -650,8 +668,7 @@ def edit_page(slug):
         page.published_date = datetime.now()
     page.is_draft = is_draft
 
-    db.session.add(page)
-    db.session.commit()
+    page.save()
     return redirect(url_for('view_page', slug=page.slug))
 
 
@@ -673,8 +690,7 @@ def create_new_page():
     if not is_draft:
         page.published_date = page.date
 
-    db.session.add(page)
-    db.session.commit()
+    page.save()
     return redirect(url_for('view_page', slug=page.slug))
 
 
