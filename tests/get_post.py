@@ -1,6 +1,5 @@
 from datetime import datetime
 
-import pytest
 import plantagenet
 from plantagenet import app
 
@@ -19,20 +18,25 @@ def test_get_post_404_for_missing(cl):
     assert response.status_code == 404
 
 
-@pytest.mark.parametrize('authenticated,expected_status', [
-    (False, 401),
-    (True, 200),
-])
-def test_get_post_draft_access(cl, login, authenticated, expected_status):
+def test_get_post_401_for_draft_unauthenticated(cl):
     post = plantagenet.Post('Draft', 'content', datetime(2024, 1, 1),
                             is_draft=True)
     app.db.session.add(post)
     app.db.session.commit()
 
-    if authenticated:
-        login()
     response = cl.get('/post/{}'.format(post.slug))
-    assert response.status_code == expected_status
+    assert response.status_code == 401
+
+
+def test_get_post_shows_draft_to_authenticated(cl, login):
+    post = plantagenet.Post('Draft', 'content', datetime(2024, 1, 1),
+                            is_draft=True)
+    app.db.session.add(post)
+    app.db.session.commit()
+
+    login()
+    response = cl.get('/post/{}'.format(post.slug))
+    assert response.status_code == 200
 
 
 def test_get_post_shows_prev_next_when_authenticated(cl, login):
