@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}{{ super() }} - Admin{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Admin Settings</h2>
+
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+    <div class="alert alert-{{ 'success' if category == 'message' else category }}">
+        {{ message }}
+    </div>
+    {% endfor %}
+
+    <form action="{{ url_for('admin') }}" method="post">
+        <table>
+            <tr>
+                <td>Site Name</td>
+                <td><input type="text" name="sitename" value="{{ sitename }}" /></td>
+            </tr>
+            <tr>
+                <td>New Password</td>
+                <td><input type="password" name="new_password" /></td>
+            </tr>
+        </table>
+        <input class="btn btn-default" type="submit" value="Save" />
+    </form>
+</div>
+{% endblock %}

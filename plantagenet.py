@@ -456,6 +456,16 @@ class Options(object):
         return option.value
 
     @staticmethod
+    def set(key, value):
+        option = db.session.get(Option, key)
+        if option:
+            option.value = value
+        else:
+            option = Option(key, value)
+        db.session.add(option)
+        db.session.commit()
+
+    @staticmethod
     def get_sitename():
         return Options.get('sitename', Config.SITENAME)
 
@@ -697,6 +707,25 @@ def create_new_page():
 def logout():
     logout_user()
     return redirect("/")
+
+
+@login_required
+def admin():
+    if request.method == 'GET':
+        return render_template('admin.html',
+                               sitename=Options.get_sitename())
+
+    sitename = request.form.get('sitename', '').strip()
+    if sitename:
+        Options.set('sitename', sitename)
+
+    new_password = request.form.get('new_password', '').strip()
+    if new_password:
+        hashed = bcrypt.generate_password_hash(new_password).decode('utf-8')
+        Options.set('hashed_password', hashed)
+
+    flash('Settings saved.')
+    return redirect(url_for('admin'))
 
 
 def get_page(filename):
@@ -957,6 +986,7 @@ def create_app(config=None):
     app.add_url_rule('/new-page', 'create_new_page', create_new_page,
                      methods=['GET', 'POST'])
     app.add_url_rule('/logout', 'logout', logout)
+    app.add_url_rule('/admin', 'admin', admin, methods=['GET', 'POST'])
     app.add_url_rule('/pages/<path:filename>', 'get_page', get_page)
 
     return app
