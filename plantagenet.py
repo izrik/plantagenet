@@ -46,10 +46,8 @@ from flask_login import logout_user
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
-import gfm  # noqa: F401
 import git
 import jinja2
-import markdown
 from slugify import slugify
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import NotFound
@@ -520,11 +518,10 @@ def setup_options():
 
 
 def render_gfm(s):
-    from mdx_gfm import GithubFlavoredMarkdownExtension
-    output = markdown.markdown(
-        s, extensions=[GithubFlavoredMarkdownExtension()])
-    moutput = Markup(output)  # nosec B704 - trusted author content
-    return moutput
+    import pycmarkgfm
+    from pycmarkgfm import options as cmark_options
+    output = pycmarkgfm.gfm_to_html(s, options=cmark_options.hardbreaks)
+    return Markup(output)  # nosec B704 - trusted author content
 
 
 def index():

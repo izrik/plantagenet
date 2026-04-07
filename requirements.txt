@@ -11,5 +11,5 @@ SQLAlchemy==2.0.48
 Unidecode==1.4.0
 Werkzeug==3.1.7
 GitPython==3.1.46
-py-gfm==2.0.0
+pycmarkgfm==1.2.1
 python-dateutil==2.9.0.post0
