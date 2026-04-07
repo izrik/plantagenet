@@ -12,14 +12,16 @@
     {% endfor %}
 
     <form action="{{ url_for('admin') }}" method="post">
-        <table>
+        <table class="table table-condensed">
             <tr>
-                <td>Site Name</td>
-                <td><input type="text" name="sitename" value="{{ sitename }}" /></td>
+                <td><label for="sitename">Site Name</label></td>
+                <td><input class="form-control" type="text" id="sitename"
+                           name="sitename" value="{{ sitename }}" /></td>
             </tr>
             <tr>
-                <td>New Password</td>
-                <td><input type="password" name="new_password" /></td>
+                <td><label for="new_password">New Password</label></td>
+                <td><input class="form-control" type="password"
+                           id="new_password" name="new_password" /></td>
             </tr>
         </table>
         <input class="btn btn-default" type="submit" value="Save" />
