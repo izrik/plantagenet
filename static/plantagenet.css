@@ -14,28 +14,23 @@
     background-color: #f8f8f8;
 }
 
-.post-content table,
-.page-content table {
+.gfm-content table {
     border-collapse: collapse;
     margin-bottom: 16px;
 }
 
-.post-content table th,
-.post-content table td,
-.page-content table th,
-.page-content table td {
+.gfm-content table th,
+.gfm-content table td {
     border: 1px solid #ddd;
     padding: 6px 13px;
 }
 
-.post-content table th,
-.page-content table th {
+.gfm-content table th {
     background-color: #f6f8fa;
     font-weight: bold;
 }
 
-.post-content table tr:nth-child(even),
-.page-content table tr:nth-child(even) {
+.gfm-content table tr:nth-child(even) {
     background-color: #f6f8fa;
 }
 
