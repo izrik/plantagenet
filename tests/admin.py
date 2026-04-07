@@ -1,4 +1,3 @@
-import pytest
 import plantagenet
 from plantagenet import app
 
@@ -25,7 +24,8 @@ def test_admin_shows_current_sitename(cl, login):
 
 def test_admin_post_updates_sitename(cl, login):
     login()
-    response = cl.post('/admin', data={'sitename': 'New Name', 'new_password': ''})
+    response = cl.post('/admin',
+                       data={'sitename': 'New Name', 'new_password': ''})
     assert response.status_code == 302
 
     assert plantagenet.Options.get('sitename') == 'New Name'
