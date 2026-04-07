@@ -706,6 +706,13 @@ def logout():
     return redirect("/")
 
 
+def handle_error(e):
+    return render_template('error.html',
+                           error_code=e.code,
+                           error_name=e.name,
+                           error_description=e.description), e.code
+
+
 @login_required
 def admin():
     if request.method == 'GET':
@@ -989,6 +996,9 @@ def create_app(config=None):
     app.add_url_rule('/logout', 'logout', logout)
     app.add_url_rule('/admin', 'admin', admin, methods=['GET', 'POST'])
     app.add_url_rule('/pages/<path:filename>', 'get_page', get_page)
+
+    for code in [400, 401, 403, 404, 500, 503]:
+        app.register_error_handler(code, handle_error)
 
     return app
 

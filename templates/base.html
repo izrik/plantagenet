@@ -35,9 +35,18 @@
     </title>
     <style>
         {% block style %}
+        html {
+            height: 100%;
+        }
         body {
+            min-height: 100%;
             padding-top: 80px;
             padding-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        .main-content {
+            flex: 1;
         }
         {% endblock %}
     </style>
@@ -71,8 +80,21 @@
     </div>
     {% endblock header %}
 
+    <div class="main-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="container">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category == 'message' else 'danger' if category == 'error' else category }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
     {% block content %}
     {% endblock content %}
+    </div>
 
     {% block footer %}
     <div class="container">
