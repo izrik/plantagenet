@@ -22,11 +22,14 @@
 {% block content %}
 
 <div class="container">
-    <form action="/login" method="post" class="form-horizontal">
-        <h2>Login</h2>
-        <input type="password" id="password" name="password" class="input-xlarge"
-               placeholder="Enter Password" required>
-        <button type="submit" class="btn btn-success">Signin</button>
+    <h2>Login</h2>
+    <form action="/login" method="post">
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input class="form-control" type="password" id="password"
+                   name="password" placeholder="Enter Password" required />
+        </div>
+        <button type="submit" class="btn btn-success">Sign in</button>
     </form>
 </div>
 
