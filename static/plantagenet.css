@@ -14,6 +14,26 @@
     background-color: #f8f8f8;
 }
 
+.gfm-content table {
+    border-collapse: collapse;
+    margin-bottom: 16px;
+}
+
+.gfm-content table th,
+.gfm-content table td {
+    border: 1px solid #ddd;
+    padding: 6px 13px;
+}
+
+.gfm-content table th {
+    background-color: #f6f8fa;
+    font-weight: bold;
+}
+
+.gfm-content table tr:nth-child(even) {
+    background-color: #f6f8fa;
+}
+
 /*
 .index-tag-list {
 }
