@@ -1008,6 +1008,7 @@ def create_app(config=None):
 app = create_app()
 
 with app.app_context():
+    db.create_all()
     run_migrations(db.engine)
 
 
