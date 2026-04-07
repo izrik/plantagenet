@@ -710,7 +710,8 @@ def logout():
 def admin():
     if request.method == 'GET':
         return render_template('admin.html',
-                               sitename=Options.get_sitename())
+                               sitename=Options.get_sitename(),
+                               extra_links=Options.get('extra_links', ''))
 
     sitename = request.form.get('sitename', '').strip()
     if sitename:
@@ -720,6 +721,9 @@ def admin():
     if new_password:
         hashed = bcrypt.generate_password_hash(new_password).decode('utf-8')
         Options.set('hashed_password', hashed)
+
+    extra_links = request.form.get('extra_links', '').strip()
+    Options.set('extra_links', extra_links)
 
     flash('Settings saved.')
     return redirect(url_for('admin'))
