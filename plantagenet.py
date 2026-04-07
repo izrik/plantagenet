@@ -771,7 +771,7 @@ def run_migrations(engine):
         conn.execute(text(
             'CREATE TABLE IF NOT EXISTS schema_migrations '
             '(version TEXT PRIMARY KEY, '
-            "applied_at TEXT NOT NULL DEFAULT (datetime('now')))"
+            'applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)'
         ))
         conn.commit()
 
