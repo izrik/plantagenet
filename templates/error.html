@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}{{ super() }} - {{ error_code }} {{ error_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>{{ error_code }} {{ error_name }}</h1>
+    <p class="text-muted">{{ error_description }}</p>
+    <a class="btn btn-default" href="{{ url_for('index') }}">Go to home page</a>
+</div>
+{% endblock %}
