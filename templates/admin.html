@@ -19,6 +19,14 @@
                            name="sitename" value="{{ sitename }}" /></td>
             </tr>
             <tr>
+                <td><label for="extra_links">Extra Links</label></td>
+                <td>
+                    <input class="form-control" type="text" id="extra_links"
+                           name="extra_links" value="{{ extra_links }}" />
+                    <p class="help-block">Comma-separated list of <code>Label:url</code> pairs, e.g. <code>About:/pages/about.html,Resume:/pages/resume.pdf</code></p>
+                </td>
+            </tr>
+            <tr>
                 <td><label for="new_password">New Password</label></td>
                 <td><input class="form-control" type="password"
                            id="new_password" name="new_password" /></td>
