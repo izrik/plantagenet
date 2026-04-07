@@ -784,9 +784,9 @@ def run_migrations(engine):
             if version_str in applied:
                 continue
 
-            print(f'[migrations] applying v{version_str}...')
-
             fpath = os.path.join(migrations_dir, fname)
+            print(f'[migrations] applying {fpath}...')
+
             with open(fpath) as f:
                 sql_content = f.read()
 
@@ -801,6 +801,7 @@ def run_migrations(engine):
 
             try:
                 for stmt in statements:
+                    print(f'[migrations] running statement: {stmt}')
                     conn.execute(text(stmt))
                 conn.execute(
                     text('INSERT INTO schema_migrations (version) '
