@@ -5,9 +5,9 @@ CREATE TABLE IF NOT EXISTS page (
     slug VARCHAR(100),
     content TEXT,
     notes TEXT,
-    date DATETIME,
-    last_updated_date DATETIME NOT NULL,
-    published_date DATETIME,
+    date TIMESTAMP,
+    last_updated_date TIMESTAMP NOT NULL,
+    published_date TIMESTAMP,
     is_draft BOOLEAN NOT NULL DEFAULT FALSE
 );
 

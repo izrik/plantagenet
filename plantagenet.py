@@ -771,7 +771,7 @@ def run_migrations(engine):
         conn.execute(text(
             'CREATE TABLE IF NOT EXISTS schema_migrations '
             '(version TEXT PRIMARY KEY, '
-            "applied_at TEXT NOT NULL DEFAULT (datetime('now')))"
+            'applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)'
         ))
         conn.commit()
 
@@ -784,9 +784,9 @@ def run_migrations(engine):
             if version_str in applied:
                 continue
 
-            print(f'[migrations] applying v{version_str}...')
-
             fpath = os.path.join(migrations_dir, fname)
+            print(f'[migrations] applying {fpath}...')
+
             with open(fpath) as f:
                 sql_content = f.read()
 
@@ -801,6 +801,7 @@ def run_migrations(engine):
 
             try:
                 for stmt in statements:
+                    print(f'[migrations] running statement: {stmt}')
                     conn.execute(text(stmt))
                 conn.execute(
                     text('INSERT INTO schema_migrations (version) '
@@ -907,18 +908,19 @@ def run():
         db.session.commit()
         print('New summary is "{}"'.format(post.summary))
     elif args.set_option is not None:
-        name, value = args.set_option
-        option = db.session.get(Option, name)
-        if option:
-            print('Setting the value for option {}'.format(name))
-            print('Old value is "{}"'.format(option.value))
-            option.value = value
-        else:
-            print('Creating option {}'.format(name))
-            option = Option(name, value)
-        db.session.add(option)
-        db.session.commit()
-        print('New value is "{}"'.format(option.value))
+        with app.app_context():
+            name, value = args.set_option
+            option = db.session.get(Option, name)
+            if option:
+                print('Setting the value for option {}'.format(name))
+                print('Old value is "{}"'.format(option.value))
+                option.value = value
+            else:
+                print('Creating option {}'.format(name))
+                option = Option(name, value)
+            db.session.add(option)
+            db.session.commit()
+            print('New value is "{}"'.format(option.value))
     elif args.clear_option is not None:
         name = args.clear_option
         option = db.session.get(Option, name)
@@ -1006,6 +1008,7 @@ def create_app(config=None):
 app = create_app()
 
 with app.app_context():
+    db.create_all()
     run_migrations(db.engine)
 
 
