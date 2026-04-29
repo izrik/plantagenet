@@ -109,7 +109,11 @@
         <small><a href="/login">Login</a></small><br/>
         {% endif %}
         {% block copyright %}
-        <small>Copyright &copy; 2017 by {{ Options.get_author() }}.</small><br/>
+        {% if Options.get_copyright() %}
+        <small>Copyright &copy; {{ Options.get_copyright() }}.</small><br/>
+        {% else %}
+        <small>Copyright &copy; {{ Options.get_author() }}.</small><br/>
+        {% endif %}
         {% endblock %}
         <small>Powered by <a href="https://github.com/izrik/plantagenet">plantagenet</a>.</small><br/>
         <small>Version: <code>{{ Options.get_version() }}</code></small><br/>

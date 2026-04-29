@@ -88,3 +88,54 @@ def test_admin_post_clears_extra_links_when_empty(cl, login):
                             'extra_links': ''})
 
     assert plantagenet.Options.get('extra_links') == ''
+
+
+def test_admin_shows_current_copyright(cl, login):
+    app.db.session.add(plantagenet.Option('copyright', '2012 - 2026'))
+    app.db.session.commit()
+
+    login()
+    response = cl.get('/admin')
+    assert b'2012 - 2026' in response.data
+
+
+def test_admin_post_updates_copyright(cl, login):
+    login()
+    cl.post('/admin', data={'sitename': '', 'new_password': '',
+                            'extra_links': '', 'copyright': '2012 - 2026'})
+
+    assert plantagenet.Options.get('copyright') == '2012 - 2026'
+
+
+def test_admin_shows_copyright_warning_when_year_missing(cl, login):
+    from datetime import datetime
+    current_year = str(datetime.now().year)
+    old_year = str(int(current_year) - 1)
+
+    app.db.session.add(plantagenet.Option('copyright', f'2012 - {old_year}'))
+    app.db.session.commit()
+
+    login()
+    response = cl.get('/admin')
+    assert b'Warning' in response.data
+
+
+def test_admin_no_copyright_warning_when_year_present(cl, login):
+    from datetime import datetime
+    current_year = str(datetime.now().year)
+
+    app.db.session.add(
+        plantagenet.Option('copyright', f'2012 - {current_year}'))
+    app.db.session.commit()
+
+    login()
+    response = cl.get('/admin')
+    assert b'Warning' not in response.data
+
+
+def test_footer_shows_copyright_string(cl):
+    app.db.session.add(plantagenet.Option('copyright', '2012 - 2026'))
+    app.db.session.commit()
+
+    response = cl.get('/')
+    assert b'2012 - 2026' in response.data

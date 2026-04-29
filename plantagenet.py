@@ -87,6 +87,7 @@ class Config(object):
     SITEURL = environ.get('PLANTAGENET_SITEURL', 'http://localhost:1177')
     CUSTOM_TEMPLATES = environ.get('PLANTAGENET_CUSTOM_TEMPLATES', None)
     AUTHOR = environ.get('PLANTAGENET_AUTHOR', 'The Author')
+    COPYRIGHT = environ.get('PLANTAGENET_COPYRIGHT', '')
     LOCAL_RESOURCES = environ.get('PLANTAGENET_LOCAL_RESOURCES', False)
     EXTERN_ROOT = environ.get('PLANTAGENET_EXTERN_ROOT', None)
     EXTRA_LINKS = environ.get('PLANTAGENET_EXTRA_LINKS', '')
@@ -122,6 +123,10 @@ if __name__ == "__main__":
                         help='The name of the author of the site. This name '
                              'will appear in the "Posted by" line on posts, '
                              'and in the copyright section in the footer.')
+    parser.add_argument('--copyright', type=str, default=Config.COPYRIGHT,
+                        help='Copyright date string shown in the footer, '
+                             'e.g. "2012 - 2026". Overrides the default which '
+                             'uses the author name and current year.')
     parser.add_argument('--local-resources', action='store_true',
                         default=Config.LOCAL_RESOURCES,
                         help='Use local resources (CSS and JS served from the '
@@ -169,6 +174,7 @@ if __name__ == "__main__":
     Config.SITEURL = args.siteurl
     Config.CUSTOM_TEMPLATES = args.custom_templates
     Config.AUTHOR = args.author
+    Config.COPYRIGHT = args.copyright
     Config.LOCAL_RESOURCES = args.local_resources
     Config.EXTERN_ROOT = args.extern_root
     Config.EXTRA_LINKS = args.extra_links
@@ -493,6 +499,10 @@ class Options(object):
         return Options.get('author', Config.AUTHOR)
 
     @staticmethod
+    def get_copyright():
+        return Options.get('copyright', Config.COPYRIGHT)
+
+    @staticmethod
     def should_use_local_resources():
         return Config.LOCAL_RESOURCES
 
@@ -718,6 +728,8 @@ def admin():
     if request.method == 'GET':
         return render_template('admin.html',
                                sitename=Options.get_sitename(),
+                               copyright=Options.get_copyright(),
+                               current_year=str(datetime.now().year),
                                extra_links=Options.get('extra_links', ''))
 
     sitename = request.form.get('sitename', '').strip()
@@ -728,6 +740,9 @@ def admin():
     if new_password:
         hashed = bcrypt.generate_password_hash(new_password).decode('utf-8')
         Options.set('hashed_password', hashed)
+
+    copyright = request.form.get('copyright', '').strip()
+    Options.set('copyright', copyright)
 
     extra_links = request.form.get('extra_links', '').strip()
     Options.set('extra_links', extra_links)
