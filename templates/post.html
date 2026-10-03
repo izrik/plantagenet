@@ -25,7 +25,7 @@
     <a href="{{ url_for('get_post', slug=post.slug) }}">
         <h1 class="post-title">{{ post.title }}{% if post.is_draft%} <small>(Draft)</small>{% endif %}</h1>
     </a>
-    {% set post_date = post.date.strftime('%Y-%m-%d') %}
+    {% set post_date = post.display_date.strftime('%Y-%m-%d') %}
     {% set post_l_u_date = post.last_updated_date.strftime('%Y-%m-%d') %}
     <p class="post-author">Posted by {{ Options.get_author() }} on {{ post_date }}</p>
     {% if post_date != post_l_u_date  %}
