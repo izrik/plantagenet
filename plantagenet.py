@@ -214,6 +214,7 @@ class Post(db.Model):
     notes = db.Column(db.Text)
     date = db.Column(db.DateTime)
     last_updated_date = db.Column(db.DateTime, nullable=False)
+    published_date = db.Column(db.DateTime, nullable=True)
     is_draft = db.Column(db.Boolean, nullable=False, default=False)
     tags = db.relationship('Tag', secondary=tags_table,
                            backref=db.backref('posts'))
@@ -225,6 +226,12 @@ class Post(db.Model):
         self.last_updated_date = date
         self.is_draft = is_draft
         self.notes = notes
+
+    @property
+    def display_date(self):
+        if self.is_draft or self.published_date is None:
+            return self.date
+        return self.published_date
 
     @property
     def content(self):
@@ -585,8 +592,10 @@ def edit_post(slug):
     post.title = title
     post.content = content
     post.notes = notes
-    post.is_draft = is_draft
     post.last_updated_date = datetime.now()
+    if not is_draft and post.published_date is None:
+        post.published_date = datetime.now()
+    post.is_draft = is_draft
 
     current_tags = set(post.tags)
     next_tags = Post.tags_from_string(tags)
@@ -617,6 +626,8 @@ def create_new():
     tags = request.form['tags']
 
     post = Post(title, content, datetime.now(), is_draft, notes)
+    if not is_draft:
+        post.published_date = post.date
     post.tags.extend(Post.tags_from_string(tags))
 
     post.save()
@@ -748,7 +759,7 @@ def get_page(filename):
     return send_from_directory(pages_dir, filename)
 
 
-def run_migrations(engine):
+def run_migrations(engine, stamp_only=False):
     migrations_dir = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), 'migrations')
     if not os.path.isdir(migrations_dir):
@@ -782,6 +793,18 @@ def run_migrations(engine):
 
         for _version_tuple, version_str, fname in files:
             if version_str in applied:
+                continue
+
+            if stamp_only:
+                # The schema was just created from the models, so it is
+                # already up to date. Record the migration without running it.
+                print(f'[migrations] marking v{version_str} as applied.')
+                conn.execute(
+                    text('INSERT INTO schema_migrations (version) '
+                         'VALUES (:v)'),
+                    {'v': version_str}
+                )
+                conn.commit()
                 continue
 
             fpath = os.path.join(migrations_dir, fname)
@@ -1008,8 +1031,9 @@ def create_app(config=None):
 app = create_app()
 
 with app.app_context():
+    is_fresh_db = not db.inspect(db.engine).has_table('post')
     db.create_all()
-    run_migrations(db.engine)
+    run_migrations(db.engine, stamp_only=is_fresh_db)
 
 
 if __name__ == "__main__":

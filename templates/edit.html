@@ -33,7 +33,9 @@
 
 <div class="container">
     <form action="{{ post_url }}" method="post">
-        <p class="text-muted">ID: {{ post.id }} &mdash; Date: {{ post.date if post.date != None }}</p>
+        <p class="text-muted">ID: {{ post.id }} &mdash;
+            Created: {{ post.date if post.date != None }} &mdash;
+            Published: {{ post.published_date if post.published_date != None }}</p>
 
         <div class="form-group">
             <label for="title">Title</label>
