@@ -10,6 +10,14 @@ A detailed file-by-file map of the plantagenet repository.
   created on import, and `db.create_all()` plus `run_migrations()` run at
   import time.
 
+## Documentation
+
+- `CHANGELOG.md` — notable changes, newest release first. A change a user
+  or operator would notice gets an entry under `## [Unreleased]` as part
+  of making it.
+- `README.md`, `CLAUDE.md` (with `AGENTS.md` as a symlink to it), and the
+  topic documents in `docs/`.
+
 ## Templates and Static Files
 
 - `templates/` — Jinja2 templates (Bootstrap 3 styling); `base.html` is the
