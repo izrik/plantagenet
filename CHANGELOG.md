@@ -28,6 +28,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   divider, instead of running on from them.
 - GitPython 3.1.62 and pytest 9.0.3, both patch releases closing known
   vulnerabilities (#97, closes #96).
+- Werkzeug 3.1.9, closing CVE-2026-102598: `safe_join` accepted Windows
+  special device names with an empty ADS marker, so a request for a file
+  served by `send_from_directory` — the `--extern-root` pages and the
+  static assets — could hang on NTFS (#103, closes #102). The check
+  script no longer suppresses CVE-2026-4539, which a patched Pygments
+  has since fixed.
 - The agent documentation was split up (#95, closes #93; #99, closes
   #98): `CLAUDE.md` is a short entry point with `AGENTS.md` as a symlink
   to it, the details live in `docs/key-files.md`,
