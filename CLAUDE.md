@@ -58,14 +58,20 @@ Templates use Bootstrap 3 (`templates/`), static assets in `static/`.
 1. **Branch** — create a branch for your work (use hyphens, not slashes)
 2. **Implement** — make changes following the code style above
 3. **Test** — run `./run_tests_with_coverage.sh` before committing
-4. **Commit** — short, imperative, sentence-style messages ending with a
+4. **Changelog** — add an entry under `## [Unreleased]` in
+   [CHANGELOG.md](CHANGELOG.md) for anything a user or operator would
+   notice: a new command or route, a changed default, a new environment
+   variable, a fixed bug. Internal refactors with no outward effect need
+   no entry.
+5. **Commit** — short, imperative, sentence-style messages ending with a
    period (e.g. `Add admin page to edit site name.`)
-5. **PR** — open pull request against `master`; reference issues with
+6. **PR** — open pull request against `master`; reference issues with
    `Closes #N`
-6. **Review** — address feedback, push fixes
+7. **Review** — address feedback, push fixes
 
 ## Further Documentation
 
+- [Changelog](CHANGELOG.md) — notable changes, newest first
 - [Key Files](docs/key-files.md) — file-by-file map of the repository
 - [Configuration](docs/configuration.md) — environment variables and settings
 - [Testing](docs/testing.md) — test fixtures and conventions

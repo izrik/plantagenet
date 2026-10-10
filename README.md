@@ -40,7 +40,8 @@ pip install -r dev_requirements.txt
 ./run_tests_with_coverage.sh
 ```
 
-See [CLAUDE.md](CLAUDE.md) for development workflow and code conventions.
+See [CLAUDE.md](CLAUDE.md) for development workflow and code conventions,
+and [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
 
 ## Docker
 
