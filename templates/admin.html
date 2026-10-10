@@ -13,6 +13,17 @@
                            name="sitename" value="{{ sitename }}" /></td>
             </tr>
             <tr>
+                <td><label for="copyright">Copyright</label></td>
+                <td>
+                    <input class="form-control" type="text" id="copyright"
+                           name="copyright" value="{{ copyright }}" />
+                    {% if copyright and current_year not in copyright %}
+                    <p class="help-block text-danger">Warning: {{ current_year }} is not in the copyright date. You may need to update it.</p>
+                    {% endif %}
+                    <p class="help-block">Copyright date string shown in the footer, e.g. <code>2012 - 2026</code>.</p>
+                </td>
+            </tr>
+            <tr>
                 <td><label for="extra_links">Extra Links</label></td>
                 <td>
                     <input class="form-control" type="text" id="extra_links"
