@@ -20,13 +20,16 @@
                     <p class="help-block">Comma-separated list of <code>Label:url</code> pairs, e.g. <code>About:/pages/about.html,Resume:/pages/resume.pdf</code></p>
                 </td>
             </tr>
-            <tr>
-                <td><label for="new_password">New Password</label></td>
-                <td><input class="form-control" type="password"
-                           id="new_password" name="new_password" /></td>
-            </tr>
         </table>
         <input class="btn btn-default" type="submit" value="Save" />
     </form>
+
+    <h3>Users</h3>
+    <p>
+        Accounts and passwords are managed on the
+        <a href="{{ url_for('list_users') }}">user management</a> page. To
+        change your own password, use the
+        <a href="{{ url_for('account') }}">account</a> page.
+    </p>
 </div>
 {% endblock %}

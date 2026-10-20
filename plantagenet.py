@@ -21,6 +21,8 @@
 
 import argparse
 from datetime import datetime
+from functools import wraps
+from getpass import getpass
 from itertools import cycle
 import os
 from os import environ
@@ -54,6 +56,7 @@ import git
 import jinja2
 from slugify import slugify
 from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import Forbidden
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import NotFound
 from werkzeug.exceptions import ServiceUnavailable
@@ -145,6 +148,23 @@ if __name__ == "__main__":
     parser.add_argument('--create-secret-key', action='store_true')
     parser.add_argument('--create-db', action='store_true')
     parser.add_argument('--hash-password', action='store', metavar='PASSWORD')
+    parser.add_argument('--create-admin', action='store', metavar='EMAIL',
+                        help='Create a user with administrator privileges. '
+                             'The password is read from the terminal. Use '
+                             'this on the server to create the first user.')
+    parser.add_argument('--create-user', action='store', metavar='EMAIL',
+                        help='Create a user without administrator '
+                             'privileges. The password is read from the '
+                             'terminal.')
+    parser.add_argument('--set-user-password', action='store',
+                        metavar='EMAIL',
+                        help="Change a user's password. The new password is "
+                             "read from the terminal.")
+    parser.add_argument('--list-users', action='store_true',
+                        help='List the users of the site.')
+    parser.add_argument('--name', action='store', metavar='NAME',
+                        help='The display name for --create-admin or '
+                             '--create-user. Defaults to the email address.')
     parser.add_argument('--count-posts', action='store_true')
     parser.add_argument('--reset-slug', action='store', metavar='POST_ID')
     parser.add_argument('--set-date', action='store', nargs=2,
@@ -185,23 +205,95 @@ db = SQLAlchemy()
 bcrypt = Bcrypt()
 
 
+MIN_PASSWORD_LENGTH = 8
+EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+$')
+
+
 # user class for providing authentication
-class User(UserMixin):
-    def __init__(self, name, email):
-        self.id = name
-        self.name = name
+class User(UserMixin, db.Model):
+    # "user" is a reserved word in some backends, so the table is "users".
+    __tablename__ = 'users'
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(100), nullable=False, unique=True, index=True)
+    name = db.Column(db.String(100), nullable=False)
+    hashed_password = db.Column(db.String(100), nullable=False,
+                                default='')
+    is_admin = db.Column(db.Boolean, nullable=False, default=False)
+
+    def __init__(self, email, name=None, password=None, is_admin=False):
         self.email = email
+        self.name = name or email
+        self.is_admin = is_admin
+        if password is not None:
+            self.set_password(password)
 
     def get_name(self):
         return self.name
 
-    @property
-    def is_authenticated(self):
-        return True
+    def set_password(self, password):
+        self.hashed_password = bcrypt.generate_password_hash(
+            password).decode('utf-8')
+
+    def check_password(self, password):
+        if not self.hashed_password:
+            return False
+        return bcrypt.check_password_hash(self.hashed_password, password)
+
+    @staticmethod
+    def validate_email(email):
+        if not email or not EMAIL_RE.match(email):
+            raise BadRequest('"{}" is not a valid email address.'.format(
+                email))
+
+    @staticmethod
+    def validate_password(password):
+        if not password or len(password) < MIN_PASSWORD_LENGTH:
+            raise BadRequest(
+                'The password must be at least {} characters long.'.format(
+                    MIN_PASSWORD_LENGTH))
+
+    @classmethod
+    def get(cls, user_id):
+        return db.session.get(User, user_id)
+
+    @classmethod
+    def get_by_email(cls, email):
+        return db.session.execute(
+            db.select(User).filter_by(email=email)).scalar()
+
+    @classmethod
+    def list(cls):
+        return db.session.execute(
+            db.select(User).order_by(User.email.asc())).scalars()
+
+    @classmethod
+    def count(cls):
+        return db.session.execute(
+            db.select(db.func.count(User.id))).scalar()
+
+    @classmethod
+    def count_admins(cls):
+        return db.session.execute(
+            db.select(db.func.count(User.id)).where(
+                User.is_admin == True)).scalar()  # noqa: E712
+
+    def save(self):
+        db.session.add(self)
+        db.session.commit()
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
 
 
 class Guest(AnonymousUserMixin):
-    pass
+    email = None
+    name = None
+    is_admin = False
+
+    def get_name(self):
+        return self.name
 
 
 # the views decorated with requires_login, below
@@ -214,6 +306,21 @@ def requires_login(view):
     decorated = login_required(view)
     login_required_views.add(decorated)
     return decorated
+
+
+def admin_required(func):
+    """Require an authenticated user with the admin flag set. Like
+    requires_login, the view is recorded so that logout knows not to send
+    the user back to it."""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not current_user.is_admin:
+            raise Forbidden(
+                'Only administrators may access this page.')
+        return func(*args, **kwargs)
+
+    return requires_login(wrapper)
 
 
 tags_table = db.Table(
@@ -534,7 +641,10 @@ class Options(object):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User(Options.get_author(), Options.get_author())
+    try:
+        return User.get(int(user_id))
+    except (TypeError, ValueError):
+        return None
 
 
 def get_current_url():
@@ -607,15 +717,18 @@ def login():
     if request.method == 'GET':
         return render_template('login.html', next_url=next_url)
 
-    stored_password = Options.get('hashed_password')
-    if not stored_password:
-        raise ServiceUnavailable('No password set')
-    password = request.form['password']
-    if not bcrypt.check_password_hash(stored_password, password):
-        flash('Password is invalid', 'error')
+    if User.count() < 1:
+        raise ServiceUnavailable(
+            'No users have been created yet. Create the first administrator '
+            'on the server with "plantagenet.py --create-admin EMAIL".')
+
+    email = request.form.get('email', '').strip()
+    password = request.form.get('password', '')
+    user = User.get_by_email(email)
+    if user is None or not user.check_password(password):
+        flash('Email or password is invalid', 'error')
         return redirect(url_for('login', next=next_url))
 
-    user = User(Options.get_author(), Options.get_author())
     login_user(user)
     flash('Logged in successfully')
     return redirect(next_url or url_for('index'))
@@ -793,7 +906,7 @@ def handle_error(e):
                            error_description=e.description), e.code
 
 
-@requires_login
+@admin_required
 def admin():
     if request.method == 'GET':
         return render_template('admin.html',
@@ -804,16 +917,109 @@ def admin():
     if sitename:
         Options.set('sitename', sitename)
 
-    new_password = request.form.get('new_password', '').strip()
-    if new_password:
-        hashed = bcrypt.generate_password_hash(new_password).decode('utf-8')
-        Options.set('hashed_password', hashed)
-
     extra_links = request.form.get('extra_links', '').strip()
     Options.set('extra_links', extra_links)
 
     flash('Settings saved.')
     return redirect(url_for('admin'))
+
+
+@admin_required
+def list_users():
+    if request.method == 'GET':
+        return render_template('users.html', users=User.list())
+
+    email = request.form.get('email', '').strip()
+    name = request.form.get('name', '').strip()
+    password = request.form.get('password', '')
+    is_admin = bool(request.form.get('is_admin'))
+
+    User.validate_email(email)
+    User.validate_password(password)
+    if User.get_by_email(email) is not None:
+        raise BadRequest(
+            'A user with the email address "{}" already exists.'.format(
+                email))
+
+    user = User(email, name, password, is_admin)
+    user.save()
+    flash('User {} created.'.format(user.email))
+    return redirect(url_for('list_users'))
+
+
+@admin_required
+def edit_user(user_id):
+    user = User.get(user_id)
+    if not user:
+        raise NotFound()
+    if request.method == 'GET':
+        return render_template('edit_user.html', user=user)
+
+    email = request.form.get('email', '').strip()
+    name = request.form.get('name', '').strip()
+    new_password = request.form.get('new_password', '')
+    is_admin = bool(request.form.get('is_admin'))
+
+    User.validate_email(email)
+    other = User.get_by_email(email)
+    if other is not None and other.id != user.id:
+        raise BadRequest(
+            'A user with the email address "{}" already exists.'.format(
+                email))
+    if user.is_admin and not is_admin and User.count_admins() <= 1:
+        raise BadRequest(
+            'There must be at least one administrator.')
+
+    user.email = email
+    user.name = name or email
+    user.is_admin = is_admin
+    if new_password:
+        User.validate_password(new_password)
+        user.set_password(new_password)
+
+    user.save()
+    flash('User {} saved.'.format(user.email))
+    return redirect(url_for('list_users'))
+
+
+@admin_required
+def delete_user(user_id):
+    user = User.get(user_id)
+    if not user:
+        raise NotFound()
+    # Deleting yourself is the only way to remove the last administrator,
+    # so refusing it is enough to keep at least one administrator around.
+    if user.id == current_user.id:
+        raise BadRequest('You cannot delete your own account.')
+
+    email = user.email
+    user.delete()
+    flash('User {} deleted.'.format(email))
+    return redirect(url_for('list_users'))
+
+
+@requires_login
+def account():
+    user = User.get(current_user.id)
+    if request.method == 'GET':
+        return render_template('account.html', user=user)
+
+    name = request.form.get('name', '').strip()
+    new_password = request.form.get('new_password', '')
+    if new_password:
+        current_password = request.form.get('current_password', '')
+        if not user.check_password(current_password):
+            flash('The current password is invalid', 'error')
+            return redirect(url_for('account'))
+        User.validate_password(new_password)
+        user.set_password(new_password)
+
+    if name:
+        user.name = name
+
+    user.save()
+    flash('Account saved.')
+    return redirect(url_for('account'))
 
 
 def get_page(filename):
@@ -917,6 +1123,68 @@ def hash_password(unhashed_password):
     return bcrypt.generate_password_hash(unhashed_password)
 
 
+def prompt_for_password():
+    password = getpass('Password: ')
+    confirmation = getpass('Confirm password: ')
+    if password != confirmation:
+        raise BadRequest('The passwords do not match.')
+    return password
+
+
+def cmd_create_user(email, name=None, is_admin=False, password=None):
+    email = (email or '').strip()
+    User.validate_email(email)
+    if User.get_by_email(email) is not None:
+        raise BadRequest(
+            'A user with the email address "{}" already exists.'.format(
+                email))
+    if password is None:
+        password = prompt_for_password()
+    User.validate_password(password)
+    user = User(email, name, password, is_admin)
+    user.save()
+    print('Created {} "{}" <{}> with id {}.'.format(
+        'administrator' if user.is_admin else 'user', user.name, user.email,
+        user.id))
+    return user
+
+
+def cmd_set_user_password(email, password=None):
+    user = User.get_by_email((email or '').strip())
+    if user is None:
+        raise NotFound(
+            'No user found with the email address "{}".'.format(email))
+    if password is None:
+        password = prompt_for_password()
+    User.validate_password(password)
+    user.set_password(password)
+    user.save()
+    print('Changed the password for <{}>.'.format(user.email))
+    return user
+
+
+def cmd_list_users():
+    users = list(User.list())
+    if not users:
+        print('No users found. Create one with --create-admin EMAIL.')
+        return users
+    print('{:<6} {:<40} {:<30} {}'.format('id', 'email', 'name', 'admin'))
+    for user in users:
+        print('{:<6} {:<40} {:<30} {}'.format(
+            user.id, user.email, user.name, 'yes' if user.is_admin else 'no'))
+    return users
+
+
+def run_user_command(func, *func_args, **func_kwargs):
+    """Run a user-management command and report any problem to the user."""
+    with app.app_context():
+        try:
+            return func(*func_args, **func_kwargs)
+        except HTTPException as e:
+            print(e.description)
+            exit(1)
+
+
 def reset_slug(post_id):
     post = db.session.get(Post, post_id)
     if not post:
@@ -954,6 +1222,16 @@ def run():
         cmd_create_db()
     elif args.hash_password is not None:
         print(hash_password(args.hash_password))
+    elif args.create_admin is not None:
+        run_user_command(cmd_create_user, args.create_admin, args.name,
+                         is_admin=True)
+    elif args.create_user is not None:
+        run_user_command(cmd_create_user, args.create_user, args.name,
+                         is_admin=False)
+    elif args.set_user_password is not None:
+        run_user_command(cmd_set_user_password, args.set_user_password)
+    elif args.list_users:
+        run_user_command(cmd_list_users)
     elif args.count_posts:
         c = db.session.execute(
             db.select(db.func.count()).select_from(Post)).scalar()
@@ -1065,6 +1343,7 @@ def create_app(config=None):
     if config:
         app.config.update(config)
 
+    login_manager.anonymous_user = Guest
     login_manager.init_app(app)
     db.init_app(app)
     app.db = db
@@ -1089,6 +1368,13 @@ def create_app(config=None):
                      methods=['GET', 'POST'])
     app.add_url_rule('/logout', 'logout', logout)
     app.add_url_rule('/admin', 'admin', admin, methods=['GET', 'POST'])
+    app.add_url_rule('/users', 'list_users', list_users,
+                     methods=['GET', 'POST'])
+    app.add_url_rule('/users/<int:user_id>', 'edit_user', edit_user,
+                     methods=['GET', 'POST'])
+    app.add_url_rule('/users/<int:user_id>/delete', 'delete_user',
+                     delete_user, methods=['POST'])
+    app.add_url_rule('/account', 'account', account, methods=['GET', 'POST'])
     app.add_url_rule('/pages/<path:filename>', 'get_page', get_page)
 
     for code in [400, 401, 403, 404, 500, 503]:

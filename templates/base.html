@@ -104,7 +104,7 @@
     <div class="container">
         <br/>
         {% if current_user.is_authenticated %}
-        <small>Logged in as {{ current_user.email }} - <a href="{{ url_for('admin') }}">admin</a> - <a href="{{ url_for('logout', next=current_url) }}">logout</a></small><br/>
+        <small>Logged in as {{ current_user.get_name() }} &lt;{{ current_user.email }}&gt; - <a href="{{ url_for('account') }}">account</a>{% if current_user.is_admin %} - <a href="{{ url_for('list_users') }}">users</a> - <a href="{{ url_for('admin') }}">admin</a>{% endif %} - <a href="{{ url_for('logout', next=current_url) }}">logout</a></small><br/>
         {% else %}
         <small><a href="{{ url_for('login', next=current_url) }}">Login</a></small><br/>
         {% endif %}

@@ -8,6 +8,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Real user accounts, with administrators and regular users** (#15).
+  Users now live in the database and log in with an email address and a
+  password of their own; the site-wide password is gone. Each account is
+  either an administrator or a regular user: administrators manage
+  accounts on the new `/users` page and keep the site settings on
+  `/admin`, while regular users can write and edit posts and pages but
+  get a 403 on either of those pages. Every user can change their own
+  name and password on the new `/account` page. Passwords must be at
+  least 8 characters long. Like the admin page and the editors, the two
+  new pages need a login, so logging out from one of them returns to the
+  index rather than back to a page that would refuse to show itself.
+
+  The first administrator is created on the server, which is also the
+  way back in if the last password is lost:
+
+  ```sh
+  python plantagenet.py --db-uri URI --create-admin you@example.com
+  ```
+
+  The password is read from the terminal. The companion commands are
+  `--create-user EMAIL`, `--set-user-password EMAIL` and `--list-users`,
+  and `--name NAME` sets the display name when creating a user.
+
+  Migration `v0.5.sql` adds the `users` table and deletes the now-unused
+  `hashed_password` option. **Upgrading sites must run `--create-admin`
+  once before anyone can log in**; the login page returns 503 with that
+  instruction until the first user exists.
 - **Posts show the date that matters to a reader** (#94, closes #54). A
   post now records a published date, set the first time it is saved as
   non-draft and never overwritten afterwards, so unpublishing and

@@ -18,15 +18,24 @@ python plantagenet.py --db-uri sqlite:///plantagenet.db --debug
 
 The server runs at `http://127.0.0.1:1177` by default.
 
-## Setting the Admin Password
+## Creating the First Administrator
+
+Users log in with an email address and their own password. The first
+administrator has to be created on the server, from the command line:
 
 ```sh
-python plantagenet.py --hash-password YOUR_PASSWORD
-# Copy the hash string (without the b'' wrapper)
-python plantagenet.py --set-option hashed_password HASH
+python plantagenet.py --db-uri sqlite:///plantagenet.db \
+    --create-admin you@example.com --name "Your Name"
 ```
 
-After that, the password can be changed from the `/admin` page.
+The password is read from the terminal, and must be at least 8 characters
+long. Other user-management commands are `--create-user EMAIL`,
+`--set-user-password EMAIL` and `--list-users`.
+
+After that, administrators manage accounts from the `/users` page, and every
+user can change their own name and password on the `/account` page.
+Administrators can also edit site settings on the `/admin` page; regular users
+can write and edit posts and pages but cannot do either of those.
 
 ## Configuration
 

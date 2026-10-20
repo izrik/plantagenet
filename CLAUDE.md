@@ -7,8 +7,10 @@ Guidance for AI coding agents (and humans) working in this repository.
 
 Plantagenet is a Python blogging system built on Flask, Flask-SQLAlchemy,
 Flask-Login, and Flask-Bcrypt. Posts and pages are written in GitHub-flavored
-Markdown and rendered with `pycmarkgfm`. There is a single admin user whose
-bcrypt-hashed password is stored in the `Option` table under `hashed_password`.
+Markdown and rendered with `pycmarkgfm`. Users live in the `User` table (table
+name `users`), log in with an email address and a bcrypt-hashed password of
+their own, and are either administrators or regular users. The first
+administrator is created on the server with `--create-admin EMAIL`.
 
 ## Commands
 
@@ -19,6 +21,8 @@ pip install -r requirements.txt -r dev_requirements.txt
 
 # Run locally (defaults to 127.0.0.1:1177)
 python plantagenet.py --db-uri sqlite:///plantagenet.db --create-db
+python plantagenet.py --db-uri sqlite:///plantagenet.db \
+    --create-admin you@example.com
 python plantagenet.py --db-uri sqlite:///plantagenet.db --debug
 
 # Run all checks (CI runs this)
@@ -36,7 +40,7 @@ flake8 plantagenet.py tests/
 Single-module Flask application (`plantagenet.py`) containing:
 
 - **Config class** — settings from `PLANTAGENET_*` env vars
-- **Models** — `Post`, `Tag`, `Page`, `Option` (SQLAlchemy)
+- **Models** — `Post`, `Tag`, `Page`, `Option`, `User` (SQLAlchemy)
 - **View functions** — routes registered via `app.add_url_rule()` in `create_app()`
 - **Migrations runner** — applies SQL files from `migrations/` at startup
 
@@ -48,6 +52,8 @@ Templates use Bootstrap 3 (`templates/`), static assets in `static/`.
 - Keep the single-module structure of `plantagenet.py` unless there is a
   strong reason to split it.
 - Put query logic in model methods (repository-style); keep views thin.
+- Guard views with `@login_required`, or `@admin_required` for anything only
+  an administrator should reach.
 - Templates use Bootstrap 3 classes; flash messages render in `base.html`.
 - Schema changes require a new migration with a higher version number.
 - Dependencies are pinned exactly in `requirements.txt` and

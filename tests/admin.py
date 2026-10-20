@@ -13,6 +13,19 @@ def test_admin_authenticated_returns_200(cl, login):
     assert response.status_code == 200
 
 
+def test_admin_non_admin_user_returns_403(cl, login, regular_user):
+    login(regular_user)
+    response = cl.get('/admin')
+    assert response.status_code == 403
+
+
+def test_admin_post_non_admin_user_returns_403(cl, login, regular_user):
+    login(regular_user)
+    response = cl.post('/admin', data={'sitename': 'New Name'})
+    assert response.status_code == 403
+    assert plantagenet.Options.get('sitename') is None
+
+
 def test_admin_shows_current_sitename(cl, login):
     app.db.session.add(plantagenet.Option('sitename', 'My Blog'))
     app.db.session.commit()
@@ -24,20 +37,10 @@ def test_admin_shows_current_sitename(cl, login):
 
 def test_admin_post_updates_sitename(cl, login):
     login()
-    response = cl.post('/admin',
-                       data={'sitename': 'New Name', 'new_password': ''})
+    response = cl.post('/admin', data={'sitename': 'New Name'})
     assert response.status_code == 302
 
     assert plantagenet.Options.get('sitename') == 'New Name'
-
-
-def test_admin_post_updates_password(cl, login):
-    login()
-    cl.post('/admin', data={'sitename': '', 'new_password': 'secret123'})
-
-    stored = plantagenet.Options.get('hashed_password')
-    assert stored is not None
-    assert plantagenet.bcrypt.check_password_hash(stored, 'secret123')
 
 
 def test_admin_post_ignores_empty_sitename(cl, login):
@@ -45,20 +48,9 @@ def test_admin_post_ignores_empty_sitename(cl, login):
     app.db.session.commit()
 
     login()
-    cl.post('/admin', data={'sitename': '', 'new_password': ''})
+    cl.post('/admin', data={'sitename': ''})
 
     assert plantagenet.Options.get('sitename') == 'Original'
-
-
-def test_admin_post_ignores_empty_password(cl, login):
-    app.db.session.add(plantagenet.Option('hashed_password', 'oldhash'))
-    app.db.session.commit()
-
-    login()
-    cl.post('/admin', data={'sitename': '', 'new_password': '',
-                            'extra_links': ''})
-
-    assert plantagenet.Options.get('hashed_password') == 'oldhash'
 
 
 def test_admin_shows_current_extra_links(cl, login):
@@ -73,7 +65,7 @@ def test_admin_shows_current_extra_links(cl, login):
 
 def test_admin_post_updates_extra_links(cl, login):
     login()
-    cl.post('/admin', data={'sitename': '', 'new_password': '',
+    cl.post('/admin', data={'sitename': '',
                             'extra_links': 'About:/pages/about.html'})
 
     assert plantagenet.Options.get('extra_links') == 'About:/pages/about.html'
@@ -84,7 +76,6 @@ def test_admin_post_clears_extra_links_when_empty(cl, login):
     app.db.session.commit()
 
     login()
-    cl.post('/admin', data={'sitename': '', 'new_password': '',
-                            'extra_links': ''})
+    cl.post('/admin', data={'sitename': '', 'extra_links': ''})
 
     assert plantagenet.Options.get('extra_links') == ''

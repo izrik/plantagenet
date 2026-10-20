@@ -4,43 +4,58 @@ import plantagenet
 from plantagenet import app
 
 
-def _set_password(password):
-    hashed = plantagenet.hash_password(password).decode()
-    opt = plantagenet.Option('hashed_password', hashed)
-    app.db.session.add(opt)
-    app.db.session.commit()
-
-
 def test_login_get_returns_200(cl):
     response = cl.get('/login')
     assert response.status_code == 200
 
 
-def test_login_post_no_password_option_raises_503(cl):
-    response = cl.post('/login', data={'password': 'test'})
+def test_login_post_no_users_raises_503(cl):
+    response = cl.post('/login', data={'email': 'nobody@example.com',
+                                       'password': 'password123'})
     assert response.status_code == 503
 
 
-def test_login_post_empty_stored_password_raises_503(cl):
-    opt = plantagenet.Option('hashed_password', '')
-    app.db.session.add(opt)
-    app.db.session.commit()
-    response = cl.post('/login', data={'password': 'test'})
-    assert response.status_code == 503
-
-
-def test_login_post_wrong_password_redirects_to_login(cl):
-    _set_password('correct')
-    response = cl.post('/login', data={'password': 'wrong'})
+def test_login_post_unknown_email_redirects_to_login(cl, regular_user):
+    response = cl.post('/login', data={'email': 'nobody@example.com',
+                                       'password': 'password123'})
     assert response.status_code == 302
     assert '/login' in response.headers['Location']
 
 
-def test_login_post_correct_password_redirects_to_index(cl):
-    _set_password('correct')
-    response = cl.post('/login', data={'password': 'correct'})
+def test_login_post_wrong_password_redirects_to_login(cl, regular_user):
+    response = cl.post('/login', data={'email': regular_user.email,
+                                       'password': 'wrong'})
+    assert response.status_code == 302
+    assert '/login' in response.headers['Location']
+
+
+def test_login_post_missing_email_redirects_to_login(cl, regular_user):
+    response = cl.post('/login', data={'password': 'password123'})
+    assert response.status_code == 302
+    assert '/login' in response.headers['Location']
+
+
+def test_login_post_correct_credentials_redirects_to_index(cl, regular_user):
+    response = cl.post('/login', data={'email': regular_user.email,
+                                       'password': 'password123'})
     assert response.status_code == 302
     assert response.headers['Location'] == '/'
+
+
+def test_login_post_correct_credentials_authenticates(cl, regular_user):
+    cl.post('/login', data={'email': regular_user.email,
+                            'password': 'password123'})
+    with cl.session_transaction() as sess:
+        assert sess['_user_id'] == str(regular_user.id)
+
+
+def test_login_post_email_of_other_user_does_not_match(cl, make_user):
+    make_user('one@example.com', password='password111')
+    make_user('two@example.com', password='password222')
+    response = cl.post('/login', data={'email': 'one@example.com',
+                                       'password': 'password222'})
+    assert response.status_code == 302
+    assert '/login' in response.headers['Location']
 
 
 def test_login_get_renders_next_url_in_form(cl):
@@ -55,34 +70,34 @@ def test_login_get_ignores_non_local_next_url(cl):
     assert b'name="next"' not in response.data
 
 
-def test_login_post_returns_to_next_url(cl):
-    _set_password('correct')
+def test_login_post_returns_to_next_url(cl, regular_user):
     response = cl.post('/login',
-                       data={'password': 'correct', 'next': '/tags'})
+                       data={'email': regular_user.email,
+                             'password': 'password123', 'next': '/tags'})
     assert response.status_code == 302
     assert response.headers['Location'] == '/tags'
 
 
-def test_login_post_ignores_non_local_next_url(cl):
-    _set_password('correct')
+def test_login_post_ignores_non_local_next_url(cl, regular_user):
     response = cl.post(
         '/login',
-        data={'password': 'correct', 'next': 'http://example.com/evil'})
+        data={'email': regular_user.email, 'password': 'password123',
+              'next': 'http://example.com/evil'})
     assert response.status_code == 302
     assert response.headers['Location'] == '/'
 
 
-def test_login_post_ignores_next_url_of_login_page(cl):
-    _set_password('correct')
+def test_login_post_ignores_next_url_of_login_page(cl, regular_user):
     response = cl.post('/login',
-                       data={'password': 'correct', 'next': '/login'})
+                       data={'email': regular_user.email,
+                             'password': 'password123', 'next': '/login'})
     assert response.status_code == 302
     assert response.headers['Location'] == '/'
 
 
-def test_login_post_wrong_password_keeps_next_url(cl):
-    _set_password('correct')
-    response = cl.post('/login', data={'password': 'wrong', 'next': '/tags'})
+def test_login_post_wrong_password_keeps_next_url(cl, regular_user):
+    response = cl.post('/login', data={'email': regular_user.email,
+                                       'password': 'wrong', 'next': '/tags'})
     assert response.status_code == 302
     assert response.headers['Location'] == '/login?next=/tags'
 
@@ -111,6 +126,20 @@ def test_logout_ignores_non_local_next_url(cl, login):
 def test_logout_ignores_next_url_that_requires_login(cl, login):
     login()
     response = cl.get('/logout?next=/admin')
+    assert response.status_code == 302
+    assert response.headers['Location'] == '/'
+
+
+def test_logout_ignores_next_url_of_the_users_page(cl, login):
+    login()
+    response = cl.get('/logout?next=/users')
+    assert response.status_code == 302
+    assert response.headers['Location'] == '/'
+
+
+def test_logout_ignores_next_url_of_the_account_page(cl, login):
+    login()
+    response = cl.get('/logout?next=/account')
     assert response.status_code == 302
     assert response.headers['Location'] == '/'
 

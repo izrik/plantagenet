@@ -35,6 +35,11 @@ def create_legacy_schema(engine):
             'last_updated_date TIMESTAMP NOT NULL, '
             'is_draft BOOLEAN NOT NULL DEFAULT FALSE)'
         ))
+        conn.execute(text(
+            'CREATE TABLE option ('
+            'name VARCHAR(100) NOT NULL PRIMARY KEY, '
+            'value VARCHAR(100))'
+        ))
         conn.commit()
 
 
@@ -85,6 +90,32 @@ def test_run_migrations_backfills_post_published_date():
     assert rows[2] is None
 
 
+def test_run_migrations_creates_the_users_table():
+    engine = create_engine('sqlite://')
+    create_legacy_schema(engine)
+    plantagenet.run_migrations(engine)
+    with engine.connect() as conn:
+        rows = conn.execute(text('SELECT id, email FROM users')).fetchall()
+    assert rows == []
+
+
+def test_run_migrations_removes_the_site_wide_password():
+    engine = create_engine('sqlite://')
+    create_legacy_schema(engine)
+    with engine.connect() as conn:
+        conn.execute(text(
+            "INSERT INTO option (name, value) "
+            "VALUES ('hashed_password', 'somehash'), ('sitename', 'My Blog')"
+        ))
+        conn.commit()
+    plantagenet.run_migrations(engine)
+    with engine.connect() as conn:
+        names = {row[0] for row in conn.execute(
+            text('SELECT name FROM option'))}
+    assert 'hashed_password' not in names
+    assert 'sitename' in names
+
+
 def test_run_migrations_stamp_only_records_without_running(ctx):
     engine = app.db.engine
     # The schema is already up to date from create_all, so running the
@@ -97,6 +128,7 @@ def test_run_migrations_stamp_only_records_without_running(ctx):
         }
     assert '0.3' in versions
     assert '0.4' in versions
+    assert '0.5' in versions
     # A subsequent normal run has nothing left to apply
     plantagenet.run_migrations(engine)
 

@@ -18,7 +18,12 @@ Use the fixtures in `tests/conftest.py`:
 
 - `ctx` — app with in-memory SQLite and a pushed app context
 - `cl` — Flask test client
-- `login` — logs in as the admin by setting the session
+- `make_user` — creates and saves a `User` (defaults: `user@example.com`,
+  password `password123`, not an administrator)
+- `admin_user` — an administrator, `admin@example.com`
+- `regular_user` — a non-administrator, `user@example.com`
+- `login` — logs a user in by setting the session; defaults to `admin_user`,
+  or pass another user, e.g. `login(regular_user)`
 
 ## Conventions
 
@@ -30,6 +35,8 @@ Use the fixtures in `tests/conftest.py`:
 
 ## Authentication in Tests
 
-The admin user password is set via the `Option` table (`hashed_password` key).
-The `login` fixture handles this automatically for tests that need
-authenticated access.
+Each user has their own bcrypt-hashed password in the `users` table. The
+`login` fixture creates an administrator and puts their id in the session, so
+tests that need authenticated access just call `login()`. For a view that
+administrators and regular users should see differently, write both a
+`login()` case and a `login(regular_user)` case.
