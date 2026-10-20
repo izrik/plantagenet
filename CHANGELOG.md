@@ -24,6 +24,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Logging in or out now returns to the page you were reading, instead of
+  always going back to the index (closes #53). The footer links carry the
+  current path as a `next` parameter, which the login form passes along,
+  and only local paths are honoured. Logging out from a page that needs a
+  login — the admin page or an editor — still goes to the index, since
+  that page would no longer be visible.
 - Extra navbar links are now separated from the built-in ones by a
   divider, instead of running on from them.
 - GitPython 3.1.62 and pytest 9.0.3, both patch releases closing known

@@ -104,9 +104,9 @@
     <div class="container">
         <br/>
         {% if current_user.is_authenticated %}
-        <small>Logged in as {{ current_user.email }} - <a href="{{ url_for('admin') }}">admin</a> - <a href="{{ url_for('logout') }}">logout</a></small><br/>
+        <small>Logged in as {{ current_user.email }} - <a href="{{ url_for('admin') }}">admin</a> - <a href="{{ url_for('logout', next=current_url) }}">logout</a></small><br/>
         {% else %}
-        <small><a href="/login">Login</a></small><br/>
+        <small><a href="{{ url_for('login', next=current_url) }}">Login</a></small><br/>
         {% endif %}
         {% block copyright %}
         <small>Copyright &copy; 2017 by {{ Options.get_author() }}.</small><br/>

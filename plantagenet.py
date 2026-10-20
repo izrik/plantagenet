@@ -26,11 +26,15 @@ import os
 from os import environ
 import re
 import secrets
+from urllib.parse import urljoin
+from urllib.parse import urlparse
 
 import dateutil.parser
+from flask import current_app
 from flask import flash
 from flask import Flask
 from markupsafe import Markup
+from flask import has_request_context
 from flask import redirect
 from flask import render_template
 from flask import request
@@ -50,6 +54,7 @@ import git
 import jinja2
 from slugify import slugify
 from werkzeug.exceptions import BadRequest
+from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import NotFound
 from werkzeug.exceptions import ServiceUnavailable
 from werkzeug.exceptions import Unauthorized
@@ -197,6 +202,18 @@ class User(UserMixin):
 
 class Guest(AnonymousUserMixin):
     pass
+
+
+# the views decorated with requires_login, below
+login_required_views = set()
+
+
+def requires_login(view):
+    """Like flask-login's login_required, but also records the view, so
+    that logout knows not to send the user back to it."""
+    decorated = login_required(view)
+    login_required_views.add(decorated)
+    return decorated
 
 
 tags_table = db.Table(
@@ -520,8 +537,57 @@ def load_user(user_id):
     return User(Options.get_author(), Options.get_author())
 
 
+def get_current_url():
+    """The path of the current request, for use as a 'next' parameter."""
+    if not has_request_context():
+        return None
+    if request.query_string:
+        return request.full_path
+    return request.path
+
+
+def is_local_url(target):
+    """Whether target points at a page of this site, and so is safe to
+    redirect to."""
+    host = urlparse(request.host_url)
+    url = urlparse(urljoin(request.host_url, target))
+    return url.scheme in ('http', 'https') and url.netloc == host.netloc
+
+
+def get_redirect_target():
+    """The url named by the 'next' parameter of the current request, or
+    None if there isn't a usable one."""
+    target = request.values.get('next')
+    if target and is_local_url(target):
+        path = urlparse(urljoin(request.host_url, target)).path
+        if path not in (url_for('login'), url_for('logout')):
+            return target
+    return None
+
+
+def is_visible_to_guests(target):
+    """Whether target can be viewed without logging in. Used by logout,
+    so that it doesn't send the user back to a page that would then
+    refuse to show itself."""
+    try:
+        endpoint, values = current_app.url_map.bind_to_environ(
+            request.environ).match(urlparse(target).path)
+    except HTTPException:
+        return False
+    view = current_app.view_functions.get(endpoint)
+    if view is None or view in login_required_views:
+        return False
+    if endpoint == 'get_post':
+        post = Post.get_by_slug(values['slug'])
+        return post is not None and not post.is_draft
+    if endpoint == 'view_page':
+        page = Page.get_by_slug(values['slug'])
+        return page is not None and not page.is_draft
+    return True
+
+
 def setup_options():
-    return {'Options': Options}
+    return {'Options': Options, 'current_url': get_current_url()}
 
 
 def render_gfm(s):
@@ -537,8 +603,9 @@ def index():
 
 
 def login():
+    next_url = get_redirect_target()
     if request.method == 'GET':
-        return render_template('login.html')
+        return render_template('login.html', next_url=next_url)
 
     stored_password = Options.get('hashed_password')
     if not stored_password:
@@ -546,13 +613,12 @@ def login():
     password = request.form['password']
     if not bcrypt.check_password_hash(stored_password, password):
         flash('Password is invalid', 'error')
-        return redirect(url_for('login'))
+        return redirect(url_for('login', next=next_url))
 
     user = User(Options.get_author(), Options.get_author())
     login_user(user)
     flash('Logged in successfully')
-    # return redirect(request.args.get('next_url') or url_for('index'))
-    return redirect(url_for('index'))
+    return redirect(next_url or url_for('index'))
 
 
 def get_post(slug):
@@ -572,7 +638,7 @@ def get_post(slug):
                            next_post=next_post, prev_post=prev_post)
 
 
-@login_required
+@requires_login
 def edit_post(slug):
     post = Post.get_by_slug(slug)
     if not post:
@@ -610,7 +676,7 @@ def edit_post(slug):
     return redirect(url_for('get_post', slug=post.slug))
 
 
-@login_required
+@requires_login
 def create_new():
     if request.method == 'GET':
         post = Post('', '', datetime.now(), True)
@@ -662,7 +728,7 @@ def view_page(slug):
     return render_template('page.html', page=page)
 
 
-@login_required
+@requires_login
 def edit_page(slug):
     page = Page.get_by_slug(slug)
     if not page:
@@ -690,7 +756,7 @@ def edit_page(slug):
     return redirect(url_for('view_page', slug=page.slug))
 
 
-@login_required
+@requires_login
 def create_new_page():
     if request.method == 'GET':
         page = Page('', '', datetime.now(), True)
@@ -713,8 +779,11 @@ def create_new_page():
 
 
 def logout():
+    next_url = get_redirect_target()
     logout_user()
-    return redirect("/")
+    if next_url and is_visible_to_guests(next_url):
+        return redirect(next_url)
+    return redirect(url_for('index'))
 
 
 def handle_error(e):
@@ -724,7 +793,7 @@ def handle_error(e):
                            error_description=e.description), e.code
 
 
-@login_required
+@requires_login
 def admin():
     if request.method == 'GET':
         return render_template('admin.html',
