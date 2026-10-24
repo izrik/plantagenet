@@ -6,7 +6,7 @@ coverage run --source=plantagenet -m pytest tests/ "$@" && \
     bandit plantagenet.py && \
     shellcheck run_tests_with_coverage.sh && \
     pymarkdown scan README.md && \
-    pip-audit && \
+    pip-audit -r requirements.txt -r dev_requirements.txt && \
     echo Success
 
 # TODO: add Dockerfile linting (hadolint is the standard tool but has no pip

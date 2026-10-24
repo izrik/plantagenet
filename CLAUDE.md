@@ -72,6 +72,8 @@ Templates use Bootstrap 3 (`templates/`), static assets in `static/`.
 ## Further Documentation
 
 - [Changelog](CHANGELOG.md) — notable changes, newest first
+- [Security Policy](SECURITY.md) — how to report a vulnerability, and what
+  is in scope
 - [Key Files](docs/key-files.md) — file-by-file map of the repository
 - [Configuration](docs/configuration.md) — environment variables and settings
 - [Testing](docs/testing.md) — test fixtures and conventions

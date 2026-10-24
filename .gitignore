@@ -57,6 +57,14 @@ local_settings.py
 instance/
 .webassets-cache
 
+# Local databases and anything holding a database URI (a URI can carry a
+# password; see docs/configuration.md)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+db_uri*.txt
+
 # Scrapy stuff:
 .scrapy
 

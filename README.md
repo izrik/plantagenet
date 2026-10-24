@@ -43,6 +43,11 @@ pip install -r dev_requirements.txt
 See [CLAUDE.md](CLAUDE.md) for development workflow and code conventions,
 and [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
 
+## Reporting a Vulnerability
+
+Please don't open a public issue — see [SECURITY.md](SECURITY.md) for how
+to report a security problem privately, and what is in scope.
+
 ## Docker
 
 ```sh
