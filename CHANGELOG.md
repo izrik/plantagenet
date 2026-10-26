@@ -28,6 +28,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   divider, instead of running on from them.
 - GitPython 3.1.62 and pytest 9.0.3, both patch releases closing known
   vulnerabilities (#97, closes #96).
+- GitPython 3.2.1, closing CVE-2026-114145: `create_submodule` cloned a
+  submodule into the repository before rejecting its path, so a path
+  under `.git` could plant an executable git hook (#107). Plantagenet
+  only reads the current revision through GitPython and never creates a
+  submodule, so it was not exposed, but the check script's `pip-audit`
+  step gates every pull request.
 - Werkzeug 3.1.9, closing CVE-2026-102598: `safe_join` accepted Windows
   special device names with an empty ADS marker, so a request for a file
   served by `send_from_directory` — the `--extern-root` pages and the
