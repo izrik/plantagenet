@@ -92,11 +92,6 @@ def test_post_get_next_includes_drafts_when_requested(ctx):
     assert post1.get_next(include_drafts=True) == draft
 
 
-def test_user_get_name(ctx):
-    user = plantagenet.User('alice', 'alice@example.com')
-    assert user.get_name() == 'alice'
-
-
 def test_page_content_setter_none(ctx):
     page = plantagenet.Page('My Page', None, datetime(2024, 1, 1))
     assert page.content == ''

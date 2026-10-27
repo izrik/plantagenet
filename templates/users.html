@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}{{ super() }} - Users{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Users</h2>
+
+    <table class="table table-condensed">
+        <tr>
+            <th>Email</th>
+            <th>Name</th>
+            <th>Admin</th>
+            <th></th>
+        </tr>
+        {% for user in users %}
+        <tr>
+            <td><a href="{{ url_for('edit_user', user_id=user.id) }}">{{ user.email }}</a></td>
+            <td>{{ user.name }}</td>
+            <td>{{ 'yes' if user.is_admin else 'no' }}</td>
+            <td>
+                {% if user.id != current_user.id %}
+                <form action="{{ url_for('delete_user', user_id=user.id) }}"
+                      method="post">
+                    <input class="btn btn-danger btn-xs" type="submit"
+                           value="Delete" />
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h3>Add a User</h3>
+    <form action="{{ url_for('list_users') }}" method="post">
+        <table class="table table-condensed">
+            <tr>
+                <td><label for="email">Email</label></td>
+                <td><input class="form-control" type="email" id="email"
+                           name="email" required /></td>
+            </tr>
+            <tr>
+                <td><label for="name">Name</label></td>
+                <td>
+                    <input class="form-control" type="text" id="name"
+                           name="name" />
+                    <p class="help-block">Defaults to the email address.</p>
+                </td>
+            </tr>
+            <tr>
+                <td><label for="password">Password</label></td>
+                <td><input class="form-control" type="password" id="password"
+                           name="password" required /></td>
+            </tr>
+            <tr>
+                <td><label for="is_admin">Administrator</label></td>
+                <td><input type="checkbox" id="is_admin" name="is_admin"
+                           value="1" /></td>
+            </tr>
+        </table>
+        <input class="btn btn-default" type="submit" value="Create" />
+    </form>
+</div>
+{% endblock %}

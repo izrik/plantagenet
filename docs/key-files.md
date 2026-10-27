@@ -5,8 +5,8 @@ A detailed file-by-file map of the plantagenet repository.
 ## Application
 
 - `plantagenet.py` — the entire application: config, CLI argument parsing,
-  models (`Post`, `Tag`, `Page`, `Option`), view functions, migrations runner,
-  and the `create_app()` factory. A module-level `app = create_app()` is
+  models (`Post`, `Tag`, `Page`, `Option`, `User`), view functions, migrations
+  runner, and the `create_app()` factory. A module-level `app = create_app()` is
   created on import, and `db.create_all()` plus `run_migrations()` run at
   import time.
 

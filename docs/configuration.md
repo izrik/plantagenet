@@ -29,6 +29,30 @@ overridden at runtime via the `Option` table, which takes precedence over
 `Config`. Use the admin interface or the `--set-option` CLI flag to update
 these values.
 
+## Users and Authentication
+
+Users are stored in the database, not in configuration. Each one has an email
+address, a display name, a bcrypt-hashed password of their own and an
+administrator flag; logging in requires the email address and the password.
+There is no site-wide password.
+
+The first administrator must be created on the server:
+
+```sh
+python plantagenet.py --db-uri URI --create-admin you@example.com \
+    --name "Your Name"
+```
+
+The password is read from the terminal and must be at least 8 characters
+long. The other user-management commands are `--create-user EMAIL`,
+`--set-user-password EMAIL` and `--list-users`. After that, administrators
+manage users at `/users` and every user can change their own name and
+password at `/account`.
+
+Administrators can reach `/admin` and `/users`; regular users cannot, and get
+a 403 if they try. Writing and editing posts and pages is open to any logged
+in user.
+
 ## Database Configuration
 
 If neither `PLANTAGENET_DB_URI` nor `PLANTAGENET_DB_URI_FILE` is set, the
