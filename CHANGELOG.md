@@ -21,6 +21,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Ordering and the next/previous links still follow the created date.
 - **This changelog** (#100), with the releases back to v0.1 condensed
   from the GitHub release notes and the git history.
+- **A security policy** (#106), in [SECURITY.md](SECURITY.md): where to
+  report a vulnerability privately, what is in scope, and what a reporter
+  can expect. CI gained a separate `audit` job, so an advisory against a
+  pinned dependency reads as its own red check rather than as a test
+  failure, and the workflow now declares `permissions: contents: read`,
+  so a compromised action can read this repository but not write to it.
+  The check script's `pip-audit` step now audits the two requirements
+  files rather than whatever is installed around it, which is both the
+  same thing CI runs and no longer able to fail on a package from the
+  runner image.
 
 ### Changed
 
