@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [v1.2] - 2026-10-30
+
+Real user accounts. The site-wide password is retired in favour of
+per-user logins, with administrators and regular users, a page for
+managing accounts and a page for changing your own. Posts also record the
+date they were first published and show it to readers, and the project
+gains a security policy and this changelog.
+
+**Upgrading:** this release replaces the site-wide password, so an
+existing site needs one command run on the server before anyone can log
+in again. Migration `v0.5.sql` applies itself at startup, adding the
+`users` table and deleting the now-unused `hashed_password` option; there
+are no accounts yet at that point, so create the first administrator:
+
+```sh
+python plantagenet.py --db-uri URI --create-admin you@example.com
+```
+
+Until a user exists, submitting the login form returns 503 with that
+instruction. Nothing else about the upgrade needs attention: no new
+environment variable, no changed default, and migration `v0.4.sql`
+backfills the new published date for posts that are already published.
+
 ### Added
 
 - **Real user accounts, with administrators and regular users** (#15).
@@ -33,8 +56,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
   Migration `v0.5.sql` adds the `users` table and deletes the now-unused
   `hashed_password` option. **Upgrading sites must run `--create-admin`
-  once before anyone can log in**; the login page returns 503 with that
-  instruction until the first user exists.
+  once before anyone can log in**; submitting the login form returns 503
+  with that instruction until the first user exists.
 - **Posts show the date that matters to a reader** (#94, closes #54). A
   post now records a published date, set the first time it is saved as
   non-draft and never overwritten afterwards, so unpublishing and
@@ -57,7 +80,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   The check script's `pip-audit` step now audits the two requirements
   files rather than whatever is installed around it, which is both the
   same thing CI runs and no longer able to fail on a package from the
-  runner image.
+  runner image. `.gitignore` also covers local database files and
+  anything named `db_uri*.txt`, so a connection string with a password in
+  it is harder to commit by accident.
 
 ### Changed
 
@@ -88,6 +113,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   to it, the details live in `docs/key-files.md`,
   `docs/configuration.md` and `docs/testing.md`, and `README.md` gained
   a quick start and a pointer to the configuration reference.
+
+### Removed
+
+- The site-wide password (#15). Logging in no longer reads the
+  `hashed_password` option, migration `v0.5.sql` deletes it, and the
+  admin page's **New Password** field is gone — passwords are changed on
+  the `/account` page, or on the server with `--set-user-password EMAIL`.
+  `--hash-password` still prints a bcrypt hash, but there is no longer
+  an option for it to be stored in, so it no longer configures
+  anything.
 
 ## [v1.1.1] - 2026-04-08
 
@@ -270,7 +305,8 @@ built on Flask.
 - A Docker image that creates the database if needed and serves the app
   with gunicorn.
 
-[Unreleased]: https://github.com/izrik/plantagenet/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/izrik/plantagenet/compare/v1.2...HEAD
+[v1.2]: https://github.com/izrik/plantagenet/compare/v1.1.1...v1.2
 [v1.1.1]: https://github.com/izrik/plantagenet/compare/v1.1...v1.1.1
 [v1.1]: https://github.com/izrik/plantagenet/compare/v1.0...v1.1
 [v1.0]: https://github.com/izrik/plantagenet/compare/v0.4...v1.0
